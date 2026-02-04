@@ -81,6 +81,7 @@
 | セールスレター | taiyo-style-sales-letter, taiyo-style |
 | ステップメール | taiyo-style-step-mail |
 | VSL/ビデオセールスレター | taiyo-style-vsl |
+| 電子書籍/eBook/本を作って | ebook-creator |
 
 設定ファイル: `.claude/hooks/config/skill-mapping.json`
 
@@ -195,9 +196,10 @@ taisun_v2/.claude/
 | `sales-systems` | セールスシステム |
 | `lp-json-generator` | LP画像のテキスト差し替え生成 |
 
-### Content Creation (10)
+### Content Creation (11)
 | Skill | Description |
 |-------|-------------|
+| `ebook-creator` | 電子書籍一発生成（原稿+画像一括） |
 | `kindle-publishing` | Kindle本出版 |
 | `note-marketing` | note記事戦略 |
 | `youtube-content` | YouTube動画企画 |
