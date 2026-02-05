@@ -81,7 +81,9 @@
 | セールスレター | taiyo-style-sales-letter, taiyo-style |
 | ステップメール | taiyo-style-step-mail |
 | VSL/ビデオセールスレター | taiyo-style-vsl |
-| 電子書籍/eBook/本を作って | ebook-creator |
+| 電子書籍/eBook/本を作って | ebook-creator-ss |
+| note + 画像 + 記事 / note記事を一発で | note-article-creator-ss |
+| 漫画 + 一括 + 生成 / 漫画を作って / マンガ一括 | manga-creator-ss |
 
 設定ファイル: `.claude/hooks/config/skill-mapping.json`
 
@@ -96,8 +98,8 @@ AIエージェント、MCPツール、マーケティングスキルを完全統
 | Component | Count | Active | Description |
 |-----------|-------|--------|-------------|
 | **Agents** | 82 | 11 | AIT42 + Taiyou統合エージェント |
-| **Skills** | 66 | 55 | マーケティング・クリエイティブ・インフラ |
-| **Commands** | 82 | 49 | ショートカットコマンド |
+| **Skills** | 68 | 57 | マーケティング・クリエイティブ・インフラ |
+| **Commands** | 84 | 51 | ショートカットコマンド |
 | **MCP Servers** | 36 | - | 外部サービス連携 |
 | **MCP Tools** | 227 | - | 自動化ツール群 |
 | **Defense Layers** | 13 | 13 | 防御層システム |
@@ -178,7 +180,7 @@ taisun_v2/.claude/
 ### Specialized Tools (16+)
 - Data analyst, Researcher, Automation architect, etc.
 
-## Skill Categories (66 Skills)
+## Skill Categories (67 Skills)
 
 ### Marketing & Sales (12)
 | Skill | Description |
@@ -196,10 +198,12 @@ taisun_v2/.claude/
 | `sales-systems` | セールスシステム |
 | `lp-json-generator` | LP画像のテキスト差し替え生成 |
 
-### Content Creation (11)
+### Content Creation (13)
 | Skill | Description |
 |-------|-------------|
-| `ebook-creator` | 電子書籍一発生成（原稿+画像一括） |
+| `ebook-creator-ss` | 電子書籍一発生成（原稿+画像一括） |
+| `note-article-creator-ss` | note記事一発生成（記事+画像一括） |
+| `manga-creator-ss` | 漫画一括生成（原稿→200+コマ画像） |
 | `kindle-publishing` | Kindle本出版 |
 | `note-marketing` | note記事戦略 |
 | `youtube-content` | YouTube動画企画 |

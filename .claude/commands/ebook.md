@@ -4,11 +4,11 @@ description: 電子書籍一発生成 - 原稿（15,000字）+ 画像を一括�
 
 # 電子書籍一発生成
 
-ebook-creator スキルを使って、電子書籍の原稿（15,000字・5章構成）と全イメージ画像を一括生成する。
+ebook-creator-ss スキルを使って、電子書籍の原稿（15,000字・5章構成）と全イメージ画像を一括生成する。
 
 ## 実行手順
 
-1. ebook-creator スキル（`.claude/skills/ebook-creator/SKILL.md`）を読み込む
+1. ebook-creator-ss スキル（`.claude/skills/ebook-creator-ss/SKILL.md`）を読み込む
 2. ユーザーが指定したテーマで Phase 1（構成設計）を開始する
 3. テーマが指定されていない場合は「どんなテーマの電子書籍を作りますか？」と聞く
 

@@ -1,5 +1,5 @@
 ---
-name: ebook-creator
+name: ebook-creator-ss
 description: 参考資料とリサーチを元に電子書籍の原稿（15,000字・5章構成）と全イメージ画像を一括生成する複合スキル。research-free + kindle-publishing + nanobanana-prompts + nanobanana-pro を統合。
 ---
 
@@ -33,6 +33,10 @@ Phase 4: 原稿執筆
 Phase 5: 画像一括生成
    │  NanoBanana で30〜35枚の画像を生成
    ▼
+Phase 5.5: 表紙作成
+   │  マンガ風帯付き表紙のヒアリング → プロンプト生成 → 画像生成
+   │  + Amazon提出用プロンプトを別ファイルとして出力
+   ▼
 Phase 6: DOCX変換
    │  Pandoc で画像埋め込みWord形式に変換
    ▼
@@ -46,33 +50,36 @@ Phase 6: DOCX変換
 | 総文字数 | 約15,000字 |
 | 構成 | はじめに + 5章 + おわりに |
 | 1章あたり | 約2,500〜3,000字 |
-| 表紙画像 | 1枚 |
+| 表紙画像 | 1枚（マンガ風帯付き表紙） |
 | 章ヘッダー画像 | 5枚 |
 | 本文中図解 | 約500字ごとに1枚（1章5〜6枚 × 5章） |
 | 画像合計 | 約30〜35枚 |
-| 出力形式 | DOCX（Word） + Markdown + images/ フォルダ |
+| Amazon提出用表紙プロンプト | 1ファイル（cover_prompt_amazon.md） |
+| 出力形式 | DOCX（Word） + Markdown + images/ フォルダ + Amazon用プロンプト |
 
 ## 出力先
 
 ```
 output/ebook-{テーマslug}/
-├── manuscript.docx        # ★ 最終成果物（Word形式・画像埋め込み済み）
-├── manuscript.md          # Markdown版（画像リンク付き）
-├── manuscript_raw.md      # 中間ファイル（画像タグ付き原稿）
-├── research.md            # リサーチ結果まとめ
+├── manuscript.docx           # ★ 最終成果物（Word形式・画像埋め込み済み）
+├── manuscript.md             # Markdown版（画像リンク付き）
+├── manuscript_raw.md         # 中間ファイル（画像タグ付き原稿）
+├── research.md               # リサーチ結果まとめ
+├── cover_prompt_amazon.md    # ★ Amazon提出用 表紙生成プロンプト（単体成果物）
 └── images/
-    ├── cover.png          # 表紙
-    ├── ch1_header.png     # 第1章ヘッダー
-    ├── ch1_img1.png       # 第1章 図解1
-    ├── ch1_img2.png       # 第1章 図解2
+    ├── cover.png             # 表紙（マンガ風帯付き・本文埋め込み用）
+    ├── ch1_header.png        # 第1章ヘッダー
+    ├── ch1_img1.png          # 第1章 図解1
+    ├── ch1_img2.png          # 第1章 図解2
     ├── ...
-    ├── ch5_header.png     # 第5章ヘッダー
-    ├── ch5_img1.png       # 第5章 図解1
+    ├── ch5_header.png        # 第5章ヘッダー
+    ├── ch5_img1.png          # 第5章 図解1
     └── ...
 ```
 
-**最終成果物は `manuscript.docx`**。画像が全て埋め込まれた状態のWordファイル。
-そのまま開いて読めるし、Google Driveにアップすれば Google ドキュメントとしても使える。
+**最終成果物は `manuscript.docx`** + **`cover_prompt_amazon.md`**。
+- `manuscript.docx`: 表紙画像が埋め込まれたWordファイル
+- `cover_prompt_amazon.md`: Amazon KDP提出用の表紙を生成するためのプロンプト（NanoBananaやGemini Gemに貼り付けて使用）
 
 ---
 
@@ -441,6 +448,33 @@ Step 4: 統合・整理
 - **段落**: 3〜4文ごとに改行。読みやすさ重視
 - **具体例**: 各章に最低2つの具体例・事例を含める
 
+### 改ページルール（DOCX出力時に反映）
+
+原稿中に `\newpage` を挿入することで、DOCX変換時に改ページが入る。
+以下のタイミングで**必ず**改ページを入れること:
+
+1. **各章の前**: `## 第N章` の直前に `\newpage`
+2. **章内の各節の前**: `### N.M` 節の直前に `\newpage`
+3. **小見出しの単元が終わるタイミング**: 内容のまとまりが変わる箇所
+
+### 図の前後の空行ルール（必須）
+
+画像タグ（`<!-- [HEADER_IMAGE: ...]-->` / `<!-- [INLINE_IMAGE: ...] -->`）の前後には**必ず1行ずつ空行**を入れること。これはDOCX変換後の読みやすさに直結する。
+
+```
+良い例:
+{本文テキスト}
+
+<!-- [INLINE_IMAGE: pattern=flow-horizontal | title=... | ...] -->
+
+{次の本文テキスト}
+
+悪い例:
+{本文テキスト}
+<!-- [INLINE_IMAGE: pattern=flow-horizontal | title=... | ...] -->
+{次の本文テキスト}
+```
+
 ### 画像タグの挿入ルール
 
 原稿中に以下のタグを埋め込む。タグは独立した行に記述する。
@@ -551,11 +585,13 @@ Step 4: 統合・整理
 ```markdown
 # {書籍タイトル}
 
+<!-- [COVER_IMAGE] -->
+
 ## はじめに
 
 {はじめに本文 800〜1,000字}
 
----
+\newpage
 
 ## 第1章 {章タイトル}
 
@@ -567,26 +603,47 @@ Step 4: 統合・整理
 
 {本文 約500字}
 
+\newpage
+
+### 1.1 {節タイトル}
+
+{本文}
+
+<!-- [INLINE_IMAGE: {説明}] -->
+
+{本文}
+
+\newpage
+
+### 1.2 {節タイトル}
+
+{本文}
+
 <!-- [INLINE_IMAGE: {説明}] -->
 
 {本文 約500字}
 
 ...（2,500〜3,000字になるまで繰り返し）
 
----
+\newpage
 
 ## 第2章 {章タイトル}
 
-（同様の構造）
+（同様の構造。章・節の前に \newpage、図の前後に空行）
 
 ...
 
----
+\newpage
 
 ## おわりに
 
 {おわりに本文 800〜1,000字}
 ```
+
+**ポイント:**
+- `\newpage` は各章（`##`）の前、各節（`###`）の前に必ず入れる
+- 画像タグの前後には必ず空行1行ずつ
+- `<!-- [COVER_IMAGE] -->` はPhase 5.5で表紙画像に置換される
 
 ---
 
@@ -616,14 +673,11 @@ Step 4: 統合・整理
 
 ---
 
-#### 表紙画像
+#### 表紙画像（本文埋め込み用）
 
-```
-* Subject: (Professional e-book cover design with title text reads "{書籍タイトル}".)
-* Layout: (Title prominently centered. Subtitle below in smaller font. Thematic visual elements related to {テーマ} arranged around the title.)
-* Visuals: (Color scheme: {メインカラー} and {サブカラー}. Bold, eye-catching typography. Professional digital illustration elements. High contrast.)
-* Style: (Modern, clean, commercial e-book cover quality, high resolution 4k.)
-```
+Phase 5.5 で生成した表紙画像（`cover.png`）をそのまま使用する。
+Phase 5 の時点では表紙タグ `<!-- [COVER_IMAGE] -->` を原稿冒頭に配置するだけでよい。
+実際の画像生成は Phase 5.5 で行う。
 
 #### 章ヘッダー画像
 
@@ -915,17 +969,161 @@ python scripts/run.py image_generator.py \
 
 ### 最終原稿の組み立て
 
-タグを画像参照に置換:
+タグを画像参照に置換する。**画像サイズ属性 `{ width=100% }` を必ず付与**し、
+DOCX変換時にページ幅に収まるようにする。
+また、**画像の前後に必ず空行1行ずつ**を維持する。
 
 ```
+変換前: <!-- [COVER_IMAGE] -->
+変換後:
+![表紙](images/cover.png){ width=100% }
+
 変換前: <!-- [HEADER_IMAGE: 説明] -->
-変換後: ![第1章ヘッダー](images/ch1_header.png)
+変換後:
+![第1章ヘッダー](images/ch1_header.png){ width=100% }
 
 変換前: <!-- [INLINE_IMAGE: 説明] -->
-変換後: ![図解: 説明の要約](images/ch1_img1.png)
+変換後:
+![図解: 説明の要約](images/ch1_img1.png){ width=100% }
 ```
 
+**注意:** 各画像行の前後に空行が1行ずつあることを必ず確認する。
+
 完成した原稿を `manuscript.md` として保存。
+
+---
+
+## Phase 5.5: 表紙作成（マンガ風帯付き表紙）
+
+### 概要
+
+Gemini Gem のマンガ風Kindle表紙デザイン手法を統合。
+原稿内容から「活力のあるマンガ・アニメスタイル」の帯付き表紙を生成する。
+
+**成果物:**
+1. `images/cover.png` - 本文に埋め込む表紙画像（NanoBananaで生成）
+2. `cover_prompt_amazon.md` - Amazon KDP提出用の高品質表紙を別途生成するためのプロンプト
+
+### 手順
+
+#### Step 1: 表紙ヒアリング
+
+原稿（Phase 4）が完成した時点で、以下をユーザーに確認する:
+
+```
+表紙を作成します。以下を教えてください：
+
+1. キャラクター設定（あれば）:
+   - メインキャラクターの見た目・特徴
+   - なければデフォルト（テーマに合ったアニメキャラ）で作成します
+
+2. 出版社・レーベルのロゴ（あれば）:
+   - 帯に入れたい名前（例：「バナナ出版」「〇〇文庫」など）
+   - なければロゴなしで進めます
+
+3. 帯のキャッチコピー（お任せ or 指定）:
+   - お任せの場合、原稿から最もインパクトのあるフレーズを抽出します
+```
+
+#### Step 2: 表紙要素の抽出
+
+原稿（manuscript_raw.md）から以下を自動抽出する:
+
+| 要素 | 抽出元 | 例 |
+|------|--------|-----|
+| タイトル | Phase 3 の書籍タイトル | 「AI副業で月10万円稼ぐ完全ガイド」 |
+| キャッチコピー | 原稿中の最もインパクトのあるフレーズ | 「緊急出版！売上が10倍変わるAI仕事術」 |
+| サブコピー | 読者への価値提示 | 「初回限定特典付き！」 |
+| キャラクター描写 | テーマに合わせた設定 | 「ノートPCを持つ若いビジネスパーソン」 |
+| 吹き出しセリフ | 読者の共感を誘うフレーズ | 「初心者でも大丈夫！」 |
+| ビフォーアフター要素 | 原稿の問題→解決パターン | 「Before: 月収ゼロ → After: 月収10万円」 |
+| 背景カラー | ビジュアルトーン設定から | 「bright yellow and blue」 |
+| 帯カラー | テーマに合わせて決定 | 「glossy red」 |
+
+#### Step 3: プロンプト構築（マンガ風帯付き表紙テンプレート）
+
+以下のテンプレートで英語プロンプトを組み立てる:
+
+```
+Manga book cover design, vibrant anime style, professional quality print texture. At the top, a large, colorful, energetic manga-style title logo with sparks reads "{書籍タイトル}". Below it, a cheerful {キャラクター描写} is {アクション}. {キャラクター名があれば} is surrounded by dynamic manga panels showing "{ビフォー要素}" and "{アフター要素}" examples. A large speech bubble coming from the character reads "{吹き出しセリフ}". The background is a bright {背景カラー} speed line and starburst effect. At the very bottom, there is a distinct, {帯の質感} {帯カラー} paper obi (wraparound band) wrapped around the cover. The obi has large {帯テキストカラー} bold text reading "{キャッチコピー}" and smaller {帯サブテキストカラー} text "{サブコピー}". {出版社ロゴがある場合: Includes a small publisher logo icon reading "{ロゴ名}" in the bottom right corner of the obi.} Vertical aspect ratio --ar 2:3
+```
+
+#### Step 4: 画像生成（本文埋め込み用）
+
+nanobanana-pro で表紙を生成する:
+
+```bash
+cd /c/Users/baseb/dev/開発1/.claude/skills/nanobanana-pro
+
+python scripts/run.py image_generator.py \
+  --prompt "{Step 3で構築したプロンプト}" \
+  --output "../../output/ebook-{slug}/images/cover.png"
+```
+
+生成後、`manuscript.md` の冒頭にある `<!-- [COVER_IMAGE] -->` を以下に置換:
+```
+![表紙](images/cover.png)
+```
+
+#### Step 5: Amazon提出用プロンプトの出力
+
+Amazon KDP提出用の高品質表紙を別途生成できるよう、プロンプトを単体ファイルとして出力する。
+
+`output/ebook-{slug}/cover_prompt_amazon.md` に以下の形式で保存:
+
+```markdown
+# Amazon KDP提出用 表紙生成プロンプト
+
+## 書籍情報
+- タイトル: {書籍タイトル}
+- テーマ: {テーマ}
+- ターゲット読者: {想定読者}
+
+## 使い方
+1. このプロンプトを Google Gemini（NanoBanana / Imagen 3）に貼り付けて実行
+2. 生成された画像をダウンロード
+3. Amazon KDP の表紙アップロードで使用
+4. 推奨サイズ: 1600x2560px（縦横比 1:1.6）
+
+## 生成プロンプト
+
+{Step 3で構築した完全なプロンプト}
+
+## カスタマイズガイド
+
+### キャラクターを変更したい場合
+以下の部分を書き換えてください:
+> "a cheerful {キャラクター描写} is {アクション}"
+
+### 帯のキャッチコピーを変更したい場合
+以下の部分を書き換えてください:
+> "large {帯テキストカラー} bold text reading "{キャッチコピー}""
+
+### 出版社ロゴを追加/変更したい場合
+末尾に以下を追加してください:
+> Includes a small publisher logo icon reading "{ロゴ名}" in the bottom right corner of the obi.
+
+### 背景カラーを変更したい場合
+以下の部分を書き換えてください:
+> "bright {背景カラー} speed line and starburst effect"
+
+### 帯の色を変更したい場合
+以下の部分を書き換えてください:
+> "{帯の質感} {帯カラー} paper obi"
+```
+
+### デザイン要件（品質基準）
+
+生成する表紙は以下の要件を満たすこと:
+
+| 要素 | 要件 |
+|------|------|
+| スタイル | 活力にあふれた（Vibrant High Energy）マンガ・アニメスタイル |
+| 上部 | エネルギッシュなマンガ風タイトルロゴ |
+| 中央 | メインキャラクター + アクション + 吹き出し + ビフォーアフターのコマ |
+| 背景 | スピード線・集中線・スターバースト効果 |
+| 下部 | リアルな紙の帯（Obi/wraparound band）+ キャッチコピー + 出版社ロゴ（任意） |
+| アスペクト比 | 2:3（縦型） |
 
 ---
 
@@ -933,38 +1131,71 @@ python scripts/run.py image_generator.py \
 
 ### 手順
 
-1. Phase 3 で完成した `manuscript.md` と `images/` を元にDOCXを生成する
+1. `manuscript.md` の最終チェック（画像サイズ属性・改ページ・空行の確認）
 2. Pandoc で画像を埋め込んだ Word ファイルを作成する
 3. 完成した DOCX をユーザーに通知する
+
+### 変換前の最終チェック（必須）
+
+DOCX変換の前に、`manuscript.md` が以下を満たしていることを確認する:
+
+```
+チェック項目:
+□ すべての画像に { width=100% } 属性が付いている
+□ 各章（## 第N章）の直前に \newpage がある
+□ 各節（### N.M）の直前に \newpage がある
+□ すべての画像行の前後に空行が1行ずつある
+□ 表紙画像（cover.png）が冒頭に挿入されている
+```
+
+不備があれば修正してから変換すること。
 
 ### 実行コマンド
 
 ```bash
-cd /c/Users/baseb/dev/taisun_agent/output/ebook-{slug}
+cd /c/Users/baseb/dev/開発1/output/ebook-{slug}
 
 pandoc manuscript.md \
   -o manuscript.docx \
   --from markdown \
   --to docx \
   --resource-path=. \
-  --standalone
+  --standalone \
+  --dpi=150
 ```
+
+**画像サイズについて:**
+- Markdownで `{ width=100% }` を付与することで、Pandocが画像をページ幅に自動フィットさせる
+- `--dpi=150` で適切な解像度を指定（大きすぎるとはみ出し、小さすぎると粗くなる）
+- これによりA4/B5/新書サイズいずれでもページ内に収まる
+
+**改ページについて:**
+- Markdown中の `\newpage` がDOCXの改ページに自動変換される
+- 章の前・節の前・単元終了時に改ページが入る
+
+**空行について:**
+- 画像前後の空行はDOCX上で適切なスペースとして反映される
+- 図と本文がくっつかず、読みやすいレイアウトになる
 
 ### 出力ファイル
 
 ```
 output/ebook-{slug}/
-├── manuscript.md          # Markdown版（画像リンク）
-├── manuscript_raw.md      # 中間ファイル（画像タグ）
-├── manuscript.docx        # ← Word版（画像埋め込み済み）
-└── images/                # 生成画像
+├── manuscript.md             # Markdown版（画像リンク）
+├── manuscript_raw.md         # 中間ファイル（画像タグ）
+├── manuscript.docx           # ← Word版（表紙+画像埋め込み済み・改ページ済み）
+├── cover_prompt_amazon.md    # ← Amazon KDP用 表紙プロンプト
+└── images/                   # 生成画像（cover.png含む）
 ```
 
 ### 補足
 
 - Pandoc が `images/` フォルダ内の画像を自動で DOCX に埋め込む
+- `{ width=100% }` により画像がページ幅に収まる（はみ出し防止）
+- `\newpage` により章・節の前で必ず改ページが入る
+- 画像前後の空行により図と本文に適切なスペースが入る
 - DOCX を Google Drive にアップロードすれば Google ドキュメントとしても開ける
-- 見出し（`#` `##`）は Word のスタイル（見出し1、見出し2）に自動変換される
+- 見出し（`#` `##` `###`）は Word のスタイル（見出し1、見出し2、見出し3）に自動変換される
 - Pandoc が未インストールの場合は `doc-convert-pandoc` スキルのセットアップ手順に従う
 
 ---
