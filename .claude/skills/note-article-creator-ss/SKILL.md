@@ -15,6 +15,14 @@ description: |
 
 参考資料 → リサーチ → 記事本文（7,000〜15,000字）+ 画像（8〜18枚）を一括生成。
 
+## Important: Gemini思考モード必須
+
+**日本語テキストを含む画像を生成する際は、Geminiの「思考モード」を必ず使用してください。**
+
+「高速モード」では日本語テキストが文字化けする可能性が高いです。nanobanana-proスキルは自動切り替えを試みますが、手動確認を推奨します：
+1. Gemini右下のモードトグルを確認
+2. 「高速」→「思考」に切り替え
+
 ## When to Use This Skill
 
 - 「note記事を画像入りで作って」「noteの記事を図解付きで」
@@ -22,7 +30,7 @@ description: |
 - 「〇〇というテーマでnote記事を作って」
 - 「この資料を元にnote記事にして」
 
-## 全体フロー（6フェーズ）
+## 全体フロー（9フェーズ）
 
 ```
 Phase 1: ヒアリング
@@ -46,6 +54,15 @@ Phase 5.5: アイキャッチバナー作成
 Phase 6: 統合・推敲
    │  note形式に整形 + クロスメディア展開提案
    ▼
+Phase 6.5: まとめ漫画1ページ生成
+   │  記事内容を3コマ漫画に要約 → 見出し用画像を自動生成
+   ▼
+Phase 7: X投稿文作成
+   │  記事からノウハウを抽出 → 3パターンのX投稿文を生成
+   ▼
+Phase 8: DOCX変換
+   │  Pandoc で画像埋め込みWord形式に変換
+   ▼
 完成！
 ```
 
@@ -61,8 +78,9 @@ Phase 6: 統合・推敲
 | 本文中図解 | 3〜8枚（1080x1080px） |
 | CTA画像 | 1〜3枚（1080x400px） |
 | まとめ画像 | 0〜1枚（1080x1080px） |
-| 画像合計 | 約8〜18枚（文字数に応じて） |
-| 出力形式 | Markdown（note貼り付け用）+ images/ フォルダ |
+| まとめ漫画 | 1枚（896×1152px）見出し用 |
+| 画像合計 | 約9〜19枚（文字数に応じて） |
+| 出力形式 | DOCX（Word）+ Markdown + images/ フォルダ |
 
 ### 文字数別の画像枚数
 
@@ -77,10 +95,12 @@ Phase 6: 統合・推敲
 
 ```
 output/note-{テーマslug}/
-├── article.md              # ★ 最終成果物（note貼り付け用Markdown）
+├── article.docx            # ★ 最終成果物（Word形式・画像埋め込み済み）
+├── article.md              # Markdown版（note貼り付け用）
 ├── article_raw.md          # 中間ファイル（画像タグ付き原稿）
 ├── research.md             # リサーチ結果まとめ
 ├── structure.md            # PASCAL構成設計書
+├── x_posts.md              # X投稿文（3パターン）
 └── images/
     ├── eyecatch.png        # アイキャッチ（1280x670px）
     ├── section_01.png      # セクション区切り1
@@ -91,7 +111,8 @@ output/note-{テーマslug}/
     ├── ...
     ├── cta_01.png          # CTA画像1
     ├── cta_02.png          # CTA画像2
-    └── summary.png         # まとめ画像
+    ├── summary.png         # まとめ画像
+    └── manga_summary.png   # まとめ漫画（見出し用）
 ```
 
 **最終成果物は `article.md`**。画像がすべてリンクされた状態のMarkdown。
@@ -445,6 +466,30 @@ L: Lead セクション（{文字数の5%}字）
 
 原稿中に以下のタグを埋め込む。タグは独立した行に記述する。
 
+#### 5つの画像タイプ
+
+本文中画像は以下の5タイプから選択する。**図解（diagram）がメインだが、内容に応じて他タイプも活用する。**
+
+| タイプ | type値 | 用途 | プロンプト特徴 |
+|--------|--------|------|---------------|
+| **図解** | `diagram` | 比較表・フロー図・ステップ図 | 4要素構造、日本語テキスト埋め込み、26パターンテンプレート使用 |
+| **イメージ画像** | `concept` | セクション区切り・雰囲気演出 | コンセプトアート、抽象的ビジュアル |
+| **スクリーンショット風** | `screenshot` | ツール操作画面・手順解説 | UIモックアップ、操作画面の再現 |
+| **実写風** | `photo` | 商品写真・人物・風景 | フォトリアリスティック |
+| **漫画/アニメ風** | `manga` | キャラクター・ストーリー表現 | 漫画/アニメスタイルイラスト |
+
+#### 画像タイプ自動選定ルール
+
+```
+セクション区切り → concept（雰囲気演出）
+本文中の比較・手順・データ → diagram（図解テンプレート）※メイン
+ツール紹介・使い方 → screenshot（操作画面）
+事例・体験談 → photo（リアル感）or manga（親しみやすさ）
+CTA → diagram or concept（訴求に応じて）
+まとめ → diagram（要点整理）
+迷ったら → diagram（図解がデフォルト）
+```
+
 #### アイキャッチ画像（記事冒頭、タイトルの直後）
 ```
 <!-- [EYECATCH_IMAGE: {記事テーマを象徴するビジュアルの説明。日本語で50〜80字}] -->
@@ -455,13 +500,35 @@ L: Lead セクション（{文字数の5%}字）
 <!-- [SECTION_IMAGE: section={P/A/S/C/A/L} | mood={そのセクションの感情} | description={視覚的な説明}] -->
 ```
 
-#### 本文中図解（約800〜1,500字ごと）
+#### 本文中画像（約800〜1,500字ごと）
 
-直前の内容に最適な**図解パターン**を選定し、タグに含める。
+**type=diagram の場合（メイン・デフォルト）:**
+直前の内容に最適な26パターンの**図解テンプレート**を選定し、タグに含める。
+```
+<!-- [INLINE_IMAGE: type=diagram | pattern={パターン名} | title={図解タイトル} | elements={要素1,要素2,要素3,...} | description={補足説明}] -->
+```
 
+**type=concept の場合:**
 ```
-<!-- [INLINE_IMAGE: pattern={パターン名} | title={図解タイトル} | elements={要素1,要素2,要素3,...} | description={補足説明}] -->
+<!-- [INLINE_IMAGE: type=concept | mood={hopeful/anxious/energetic/calm/professional} | desc={雰囲気・シーンの説明}] -->
 ```
+
+**type=screenshot の場合:**
+```
+<!-- [INLINE_IMAGE: type=screenshot | tool={ツール名} | action={操作の説明}] -->
+```
+
+**type=photo の場合:**
+```
+<!-- [INLINE_IMAGE: type=photo | scene={被写体・構図の説明}] -->
+```
+
+**type=manga の場合:**
+```
+<!-- [INLINE_IMAGE: type=manga | scene={シーンの説明} | style={少年漫画風/少女漫画風/Webtoon風}] -->
+```
+
+**重要: type を省略した場合は `diagram` として扱う（後方互換性維持）。**
 
 #### CTA画像（誘導ポイント）
 ```
@@ -550,7 +617,17 @@ L: Lead セクション（{文字数の5%}字）
 
 <!-- [SECTION_IMAGE: section=P | mood=不安・焦り | description=暗い背景に「？」マークが浮かぶ。悩んでいる人のシルエット] -->
 
-<!-- [INLINE_IMAGE: pattern=flow-horizontal | title=AI活用の3ステップ | elements=情報収集,分析・選定,実践・改善 | description=各ステップにシンプルなアイコン付き、左から右への自然な流れ] -->
+<!-- [INLINE_IMAGE: type=diagram | pattern=flow-horizontal | title=AI活用の3ステップ | elements=情報収集,分析・選定,実践・改善 | description=各ステップにシンプルなアイコン付き、左から右への自然な流れ] -->
+
+<!-- [INLINE_IMAGE: type=diagram | pattern=comparison-table | title=デザイン手段 徹底比較 | elements=外注,Canva,Midjourney,NanoBanana Pro | rows=コスト,品質,手軽さ,日本語対応 | description=NanoBanana Pro列を青でハイライト] -->
+
+<!-- [INLINE_IMAGE: type=concept | mood=hopeful | desc=扉が開いて光が差し込む、新しい可能性の象徴] -->
+
+<!-- [INLINE_IMAGE: type=screenshot | tool=Gemini | action=NanoBanana Proで画像生成している画面、プロンプト入力中] -->
+
+<!-- [INLINE_IMAGE: type=photo | scene=デスクワークしている人の手元、ノートPCとコーヒー、自然光] -->
+
+<!-- [INLINE_IMAGE: type=manga | scene=主人公がAIツールを発見して驚いている、吹き出し付き | style=少年漫画風] -->
 
 <!-- [CTA_IMAGE: type=line | text=【無料】7日間メール講座を受け取る | description=LINE緑のグラデーション背景、ギフトアイコン、QRコード配置スペース] -->
 
@@ -559,6 +636,8 @@ L: Lead セクション（{文字数の5%}字）
 悪い例:
 <!-- [EYECATCH_IMAGE: いい感じの画像] -->
 <!-- [INLINE_IMAGE: pattern=flow-horizontal | title=流れ | elements=A,B,C | description=] -->
+<!-- [INLINE_IMAGE: type=diagram | title=概要 | elements=A,B] -->  ← patternがない
+<!-- [INLINE_IMAGE: Orange gradient marketing banner with white bold text] --> ← タグ形式不正、4要素構造なし
 ```
 
 ### 原稿のMarkdown構造
@@ -578,7 +657,7 @@ L: Lead セクション（{文字数の5%}字）
 
 {本文 約800〜1,500字}
 
-<!-- [INLINE_IMAGE: {説明}] -->
+<!-- [INLINE_IMAGE: type=diagram | pattern={パターン} | title={タイトル} | elements={要素} | description={説明}] -->
 
 {本文 約800〜1,500字}
 
@@ -590,7 +669,7 @@ L: Lead セクション（{文字数の5%}字）
 
 {本文}
 
-<!-- [INLINE_IMAGE: {説明}] -->
+<!-- [INLINE_IMAGE: type=diagram | pattern={パターン} | title={タイトル} | elements={要素} | description={説明}] -->
 
 {本文}
 
@@ -604,11 +683,11 @@ L: Lead セクション（{文字数の5%}字）
 
 {本文（最も分量が多いセクション）}
 
-<!-- [INLINE_IMAGE: {説明}] -->
+<!-- [INLINE_IMAGE: type=diagram | pattern={パターン} | title={タイトル} | elements={要素} | description={説明}] -->
 
 {本文}
 
-<!-- [INLINE_IMAGE: {説明}] -->
+<!-- [INLINE_IMAGE: type=screenshot | tool={ツール名} | action={操作説明}] -->  ← ツール紹介の場合
 
 {本文}
 
@@ -620,7 +699,7 @@ L: Lead セクション（{文字数の5%}字）
 
 {本文}
 
-<!-- [INLINE_IMAGE: {説明}] -->
+<!-- [INLINE_IMAGE: type=diagram | pattern={パターン} | title={タイトル} | elements={要素} | description={説明}] -->
 
 ---
 
@@ -628,7 +707,7 @@ L: Lead セクション（{文字数の5%}字）
 
 {本文}
 
-<!-- [INLINE_IMAGE: {説明}] -->
+<!-- [INLINE_IMAGE: type=diagram | pattern={パターン} | title={タイトル} | elements={要素} | description={説明}] -->
 
 <!-- [CTA_IMAGE: {説明}] -->
 
@@ -647,27 +726,202 @@ L: Lead セクション（{文字数の5%}字）
 
 ## Phase 5: 画像一括生成
 
+### 重要: 画像生成前の確認事項
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  ⚠️  画像生成を開始する前に、必ず以下を確認・実行してください       │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**1. 認証状態の確認:**
+```bash
+cd 開発1/.claude/skills/nanobanana-pro
+python scripts/run.py auth_manager.py status
+```
+- 「✓ Authenticated」が表示されない場合は、`setup` で再認証
+
+**2. --show-browser オプションを常に使用:**
+- 画像生成コマンドには必ず `--show-browser` を付ける
+- ブラウザが表示されることで、ログイン状態や思考モード切替を目視確認できる
+
+**3. ログインが必要になった場合:**
+- ブラウザが開き「ログインしてください」というメッセージが表示される
+- Googleアカウントでログインすると、自動的にセッションが保存される
+- ログイン完了後、画像生成が自動的に再開される
+
+**4. 思考モード切替:**
+- nanobanana-pro は自動的に「高速」→「思考」モードに切り替えを試みる
+- 切替に失敗した場合は手動で切り替える（Gemini画面右下のトグル）
+- 思考モードでないと日本語テキストが文字化けする可能性が高い
+
+### エラー発生時の対処フロー
+
+```
+画像生成失敗
+    │
+    ├─ 「Not authenticated」エラー
+    │      → python scripts/run.py auth_manager.py setup で再認証
+    │
+    ├─ 「画像の作成ボタンが見つかりません」
+    │      → ブラウザでGoogleにログイン（自動待機）
+    │
+    ├─ 「Target page, context or browser has been closed」
+    │      → ブラウザが閉じられた
+    │      → タイムアウトを延長 --timeout 300
+    │      → 再実行
+    │
+    ├─ 日本語が文字化け
+    │      → 思考モードになっているか確認
+    │      → 手動で「高速」→「思考」に切り替え
+    │
+    └─ その他のエラー
+           → --show-browser で状況を確認
+           → ブラウザを閉じて再実行
+```
+
 ### 手順
 
 1. `article_raw.md` から全画像タグを抽出する
 2. 各タグを NanoBanana 用プロンプトに変換する
-3. nanobanana-pro スキルで画像を1枚ずつ生成する
+3. nanobanana-pro スキルで画像を1枚ずつ生成する（`--show-browser` 必須）
 4. 生成した画像パスでタグを置換し、`article.md` を作成する
 
 ### 画像タグ → NanoBanana プロンプト変換ルール
 
-**プロンプト形式: バイリンガル・ハイブリッド記述（NanoBanana形式）**
+**プロンプト形式: Nano Banana / Imagen 3 最適化形式**
 
-すべてのプロンプトは以下の4要素で構成する：
-- **Subject**: 何を描くか（全体概要）
-- **Layout**: 空間配置・構造の英語指示
-- **Visuals**: 色・アイコン・視覚要素の英語指示
-- **Style**: デザインスタイルの統一指示
+すべてのプロンプトは以下の形式で構成する：
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  日本語テキストの指定方法（最重要）                                 │
+│  → text reads "日本語" の形式で指定する                            │
+│  → 絶対に翻訳せず、そのまま一言一句正確に使用                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**必須スタイルキーワード（すべてのプロンプトに含める）:**
+```
+Flat vector design, modern business presentation style, clean Japanese typography, bold sans-serif fonts, corporate color palette, white background, high resolution 4k.
+```
 
 **鉄則:**
-- 構造（Layout）と視覚（Visuals）は**英語**で記述（AIの空間認識精度が最も高い）
-- 図中に表示するテキストは `"日本語"` のまま翻訳せず使用
-- 最も重要な要素には `vivid highlight color` を指定し、他は `soft gray` / `neutral colors`
+1. **日本語テキスト固定:** `text reads "日本語"` 内のテキストは**絶対に翻訳せず、そのまま使用**
+2. **スタイル統一:** 上記の必須スタイルキーワードを常に含める
+3. **視覚的優先度:** 最も重要な要素には `vivid highlight color` を指定し、他は `soft gray` / `neutral colors`
+4. **レイアウト詳細:** 図解パターンごとの `Prompt Logic` を使用して空間配置を指定
+
+### タイプ別プロンプト変換ルール
+
+INLINE_IMAGE タグの `type` 値に応じて、以下のルールでプロンプトを変換する。
+
+#### type=diagram の場合（メイン）
+- `pattern`値 → 後述の26パターンテンプレートを自動適用
+- 4要素構造（Subject/Layout/Visuals/Style）**必須**
+- 日本語テキスト埋め込み**必須**
+- Style末尾に "Japanese font, 4k" を**必ず**追加
+
+#### type=concept の場合
+```
+* Subject: (Professional concept art for note article. Mood: {mood}. {descを英訳}.)
+* Layout: (Square 1080x1080px. {moodに応じた構図}. Atmospheric composition with depth.)
+* Visuals: (Color palette matching mood: {mood別カラー}. Soft gradients. Abstract visual elements. NO text in the image.)
+* Style: (Modern digital art, atmospheric, consistent with article theme, high resolution 4k.)
+```
+
+mood別カラー:
+- hopeful: 暖かいオレンジ→ゴールド系
+- anxious: ダークグレー→ブルーグレー系
+- energetic: ビビッドレッド→オレンジ系
+- calm: ソフトブルー→ミントグリーン系
+- professional: ネイビー→シルバー系
+
+#### type=screenshot の場合
+```
+* Subject: (Realistic screenshot mockup of {tool} interface showing {actionを英訳}.)
+* Layout: (Square 1080x1080px. Browser window frame at top. Main content area showing {tool} UI with Japanese text.)
+* Visuals: (Clean UI elements. Realistic browser chrome. Japanese text labels: "{操作の日本語説明}". Cursor pointing at key action area.)
+* Style: (Realistic screenshot mockup, browser window frame, crisp UI rendering, high resolution 4k.)
+```
+
+#### type=photo の場合
+```
+* Subject: (Professional photograph of {sceneを英訳}.)
+* Layout: (Square 1080x1080px. {構図の英語指示 - rule of thirds, centered, etc.}.)
+* Visuals: (Natural lighting. Shallow depth of field. Warm color temperature. Professional quality. NO text overlay.)
+* Style: (Photorealistic, professional photography, natural bokeh, high resolution 4k.)
+```
+
+#### type=manga の場合
+```
+* Subject: (Manga panel illustration. {sceneを英訳}.)
+* Layout: (Square 1080x1080px. {style}構図. Speech bubbles with Japanese text: "{セリフ}". Dynamic panel composition.)
+* Visuals: (Speed lines. Expressive character faces. {style}トーン. Bold outlines. Emotion effects.)
+* Style: ({style} manga illustration, dynamic composition, Japanese text in speech bubbles, high resolution 4k.)
+```
+
+style別指示:
+- 少年漫画風: "Shonen manga style, action-oriented, bold lines, high energy"
+- 少女漫画風: "Shoujo manga style, flowery backgrounds, sparkling eyes, soft lines"
+- Webtoon風: "Webtoon style, vertical panel, clean lines, modern digital art"
+
+### 禁止事項（厳守）
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  ⚠️  警告: 以下のルールを破ると日本語テキストが文字化けします      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+- **タグなし**で自由にプロンプトを書くことは**禁止**（必ずタグ形式を使用）
+- **4要素構造を使わない**図解プロンプトは**絶対禁止**（文字化けの原因）
+- **1行の長文プロンプト**は**絶対禁止**（必ず4要素に分離する）
+- **日本語テキストなし**の図解は**禁止**
+- 英語だけの抽象的プロンプト（例: "Orange gradient marketing banner with white bold text"）は**禁止**
+
+### プロンプト形式の鉄則（文字化け防止）
+
+**必ず以下の形式を使う:**
+```
+* Subject: (...)
+* Layout: (...)
+* Visuals: (...)
+* Style: (...Japanese typography, 4k.)
+```
+
+**絶対にやってはいけない:**
+```
+Comparison chart infographic with Japanese text. Title: デザイン手段...（1行の長文）
+```
+
+→ 1行の長文プロンプトは日本語テキストが文字化けする原因になる
+
+### Before/After例
+
+```
+❌ BAD: "Orange gradient marketing banner with white bold text"
+❌ BAD: type=diagramだがpatternなし
+❌ BAD: 4要素構造なしの1行プロンプト
+
+✅ GOOD (diagram):
+* Subject: (Comparison infographic with Japanese text.)
+* Layout: (4-column table. Headers: "外注","Canva","Midjourney","NanoBanana Pro". NanoBanana Pro column highlighted blue.)
+* Visuals: (Blue #4285F4 highlight. Gold star ratings. White background.)
+* Style: (Professional flat infographic, bold Japanese sans-serif font, 4k.)
+
+✅ GOOD (concept):
+* Subject: (Professional concept art. Mood: hopeful. A door opening with light streaming in, symbolizing new possibilities.)
+* Layout: (Square 1080x1080px. Centered composition. Dramatic lighting from right side.)
+* Visuals: (Warm orange-gold gradient. Soft light rays. Abstract doorway silhouette. NO text.)
+* Style: (Modern digital art, atmospheric, cinematic lighting, high resolution 4k.)
+
+✅ GOOD (manga):
+* Subject: (Manga panel of character discovering AI design tool.)
+* Layout: (Square 1080x1080px. Single panel, character center with surprised expression. Speech bubble: "これなら私でもできる！")
+* Visuals: (Speed lines radiating from center. Sparkle effects. Bright warm colors. Bold outlines.)
+* Style: (Shonen manga style, dynamic composition, Japanese text in speech bubbles, 4k.)
+```
 
 ---
 
@@ -784,11 +1038,9 @@ Phase 5 の時点ではタグ `<!-- [EYECATCH_IMAGE: ...] -->` を配置する�
 
 **No.6 フロー図：横型 (`flow-horizontal`)**
 ```
-* Subject: (Horizontal Flow Chart showing a process with Japanese text.)
-* Layout: (Linear progression left to right. Steps connected by bold arrows: {elements}. Title: "{title}".)
-* Visuals: (Chevron-shaped boxes for each step. Cohesive color palette {メインカラー}. High-quality icons above each step.)
-* Style: (Professional, sleek, flat design, white background, Japanese font, 4k.)
+Horizontal process flow infographic. Title text reads "{title}". Step 1 text reads "{step1}". Step 2 text reads "{step2}". Step 3 text reads "{step3}". Step 4 text reads "{step4}". Linear progression from left to right. Distinct rectangular cards connected by bold sleek arrows. Simple icons above each step. Final step in vivid highlight color. Flat vector design, modern business presentation style, clean Japanese typography, bold sans-serif fonts, white background, high resolution 4k.
 ```
+Prompt Logic: `Horizontal process flow from left to right. Distinct rectangular cards connected by bold, sleek arrows.`
 
 **No.7 フロー図：縦型 (`flow-vertical`)**
 ```
@@ -816,19 +1068,15 @@ Phase 5 の時点ではタグ `<!-- [EYECATCH_IMAGE: ...] -->` を配置する�
 
 **No.10 項目比較図 (`comparison-table`)**
 ```
-* Subject: (Comparison chart with Japanese text.)
-* Layout: (Grid comparing items across features: {elements}. Recommended column highlighted.)
-* Visuals: (Bright checkmarks for recommended, gray X marks for others. Highlighted column with bold border in {アクセントカラー}.)
-* Style: (Corporate style, clean lines, easy-to-read Japanese, professional, 4k.)
+Comparison table infographic. Title text reads "{title}". Column headers text reads "{col1}", "{col2}", "{col3}", "{col4}". Row labels text reads "{row1}", "{row2}", "{row3}", "{row4}". The "{推奨列}" column is highlighted in vivid accent color with bold border. Other columns in soft gray. Bright checkmarks for recommended features, neutral X marks for others. Flat vector design, modern business presentation style, clean Japanese typography, bold sans-serif fonts, corporate color palette, white background, high resolution 4k.
 ```
+Prompt Logic: `Comparison table with checkmarks. The "Our Service" column is highlighted in a vivid accent color, while others are neutral gray.`
 
 **No.11 階段ステップ図 (`stairs`)**
 ```
-* Subject: (Staircase Step Diagram with Japanese text.)
-* Layout: (Rising steps labeled: {elements}. Character icon at top. Title: "{title}".)
-* Visuals: (Isometric 3D perspective steps. Color intensity increases with height. Clear bold Japanese labels.)
-* Style: (Achievement-oriented, motivational style, high-quality vector, 4k.)
+Ascending staircase infographic. Title text reads "{title}". Step 1 text reads "{step1}". Step 2 text reads "{step2}". Step 3 text reads "{step3}". Step 4 text reads "{step4}". Each step has a number icon and bold label. Person icon at the top step in vivid highlight color. Isometric 3D perspective, color intensity increases with height. Flat vector design, modern business presentation style, clean Japanese typography, bold sans-serif fonts, white background, high resolution 4k.
 ```
+Prompt Logic: `Ascending staircase design. Each step has a number icon and title, showing upward progression.`
 
 **No.12 地図・マップ (`map`)**
 ```
@@ -840,11 +1088,9 @@ Phase 5 の時点ではタグ `<!-- [EYECATCH_IMAGE: ...] -->` を配置する�
 
 **No.13 ハニカム構造 (`honeycomb`)**
 ```
-* Subject: (Honeycomb/Hexagon grid infographic with Japanese text.)
-* Layout: (Cluster of interlocking hexagons. Center: "{title}", surrounding: {elements}.)
-* Visuals: (Modern icons inside each hexagon. Subtle gradient colors. Clean connecting points.)
-* Style: (Tech-oriented, geometric, minimalist, high-quality Japanese typography, 4k.)
+Hexagonal honeycomb grid infographic. Center hexagon text reads "{title}" in vivid highlight color. Surrounding hexagons text reads "{hex1}", "{hex2}", "{hex3}", "{hex4}", "{hex5}", "{hex6}", "{hex7}", "{hex8}". Tightly packed hexagons with no gaps. Modern icons inside each hexagon. Surrounding hexagons in soft neutral colors. Flat vector design, modern business presentation style, clean Japanese typography, bold sans-serif fonts, white background, high resolution 4k.
 ```
+Prompt Logic: `Hexagonal grid pattern (honeycomb style). Elements are tightly packed with no gaps, showing a balanced collection.`
 
 **No.14 相関図 (`network`)**
 ```
@@ -971,30 +1217,39 @@ nanobanana-pro スキルを使用する:
 ```bash
 cd /c/Users/baseb/dev/開発1/.claude/skills/nanobanana-pro
 
+# ⚠️ 重要: 必ず --show-browser と --timeout 300 を指定する
+# - --show-browser: ログイン状態・思考モード切替を目視確認
+# - --timeout 300: 長いプロンプトや混雑時のタイムアウト対策
+
 # アイキャッチ
-python scripts/run.py image_generator.py \
+PYTHONIOENCODING=utf-8 python scripts/run.py image_generator.py \
   --prompt "{変換後プロンプト}" \
-  --output "../../output/note-{slug}/images/eyecatch.png"
+  --output "../../output/note-{slug}/images/eyecatch.png" \
+  --show-browser --timeout 300
 
 # セクション区切り
-python scripts/run.py image_generator.py \
+PYTHONIOENCODING=utf-8 python scripts/run.py image_generator.py \
   --prompt "{変換後プロンプト}" \
-  --output "../../output/note-{slug}/images/section_01.png"
+  --output "../../output/note-{slug}/images/section_01.png" \
+  --show-browser --timeout 300
 
 # 本文中図解
-python scripts/run.py image_generator.py \
+PYTHONIOENCODING=utf-8 python scripts/run.py image_generator.py \
   --prompt "{変換後プロンプト}" \
-  --output "../../output/note-{slug}/images/inline_01.png"
+  --output "../../output/note-{slug}/images/inline_01.png" \
+  --show-browser --timeout 300
 
 # CTA画像
-python scripts/run.py image_generator.py \
+PYTHONIOENCODING=utf-8 python scripts/run.py image_generator.py \
   --prompt "{変換後プロンプト}" \
-  --output "../../output/note-{slug}/images/cta_01.png"
+  --output "../../output/note-{slug}/images/cta_01.png" \
+  --show-browser --timeout 300
 
 # まとめ画像
-python scripts/run.py image_generator.py \
+PYTHONIOENCODING=utf-8 python scripts/run.py image_generator.py \
   --prompt "{変換後プロンプト}" \
-  --output "../../output/note-{slug}/images/summary.png"
+  --output "../../output/note-{slug}/images/summary.png" \
+  --show-browser --timeout 300
 ```
 
 ### 最終原稿の組み立て
@@ -1080,24 +1335,56 @@ noteバナー職人のデザイン手法を統合。
 #### Step 4: プロンプト構築（3パターン）
 
 選択されたスタイルに応じて、以下のテンプレートでプロンプトを構築する。
+**出力サイズのアスペクト比は `1.91:1`（1280x670px相当）を必ず指定する。**
 
 ##### パターンA: インパクト＆エンタメ風（推奨デフォルト）
+
+YouTubeサムネに近いテイスト。極太の袋文字グラデーション、集中線、賑やかな装飾。強い主張やエンタメ記事向け。
 
 ```
 note header image, vibrant high-energy illustration style, maximalist composition, Japanese pop design aesthetic, high resolution. Dynamic illustration representing the core concept of {記事の内容を英語で要約}. Expressive characters or elements showing strong emotion and action. Bold, saturated colors. Dynamic gradient background with speed lines, abstract shapes, subtle sparkles, pop art feel. Huge, thick Japanese Gothic font reading "{メインタイトル}" with gradient fill, thick double outline, 3D effect popping out. Prominent subtitle text reading "{サブタイトル}" in a contrasting color ribbon or banner box. Small badge icons in the corner reading "{カテゴリ/タグ}". --ar 1.91:1
 ```
 
+**プロンプト構成要素（参考）:**
+- **Style:** note header image, vibrant high-energy illustration style, maximalist composition, Japanese pop design aesthetic, high resolution
+- **Visual:** Dynamic illustration representing the core concept of [記事本文]. Expressive characters or elements showing strong emotion/action. Bold colors.
+- **Background:** Dynamic gradient background with speed lines, abstract shapes, subtle sparkles. Pop art feel.
+- **Typography & Layout:**
+  - **Main Title:** Huge, thick Japanese Gothic font reading "[メインタイトル]". Gradient fill with a thick double outline. 3D effect popping out.
+  - **Subtitle:** Prominent subtitle text reading "[サブタイトル]". In a contrasting color ribbon or banner box.
+  - **Tags:** Small badge icons in the corner reading "[カテゴリ/タグ]".
+
 ##### パターンB: コミックエッセイ・温かいイラスト風
+
+親しみやすい手書き線画、水彩やパステルの優しい色彩。エッセイ、日常、共感系向け。
 
 ```
 note header image, gentle flat vector illustration, comic essay style, hand-drawn textures, pastel and soft colors, simple lines, warm atmosphere, high resolution. Center or right, a cute simple character or scene representing the story of {記事の内容を英語で要約}. Soft, friendly expressions. Watercolor texture overlay. Large hand-written style playful typography reads "{メインタイトル}" in dark brown or natural color. Floating organic shapes or speech bubbles containing "{サブタイトル}". Small hand-drawn tag style element containing "{カテゴリ/タグ}". --ar 1.91:1
 ```
 
+**プロンプト構成要素（参考）:**
+- **Style:** note header image, gentle flat vector illustration, comic essay style, hand-drawn textures, pastel and soft colors, simple lines, warm atmosphere
+- **Visual:** Center/Right, a cute simple character or scene representing the story of [記事本文]. Soft, friendly expressions. Watercolor texture overlay.
+- **Typography:**
+  - Large hand-written style playful typography reads "[メインタイトル]" in dark brown or natural color.
+  - Floating organic shapes or speech bubbles containing "[サブタイトル]".
+  - Small hand-drawn tag style element containing "[カテゴリ/タグ]".
+
 ##### パターンC: スタイリッシュ・ビジネス＆インテリジェンス風
+
+高品質な写真素材、洗練されたタイポグラフィ、美しい余白。ビジネス、技術、知見共有向け。
 
 ```
 note header image, professional photography, cinematic lighting, shallow depth of field, modern minimalist layout, sophisticated editorial design, high resolution. Right side, high-quality conceptual photograph representing the topic of {記事の内容を英語で要約}. Blurred, clean background. Elegant, heavy Sans-serif or Serif typography reads "{メインタイトル}" in Gold, White, or Black. High contrast, clean layout with negative space. A clean, semi-transparent overlay box containing "{サブタイトル}". Minimalist text element for "{カテゴリ/タグ}". --ar 1.91:1
 ```
+
+**プロンプト構成要素（参考）:**
+- **Style:** note header image, professional photography, cinematic lighting, shallow depth of field, modern minimalist layout, sophisticated editorial design
+- **Visual:** Right side, high-quality conceptual photograph representing the topic of [記事本文] (e.g., person thinking, modern desk setup, abstract tech visualization). Blurred, clean background.
+- **Typography:**
+  - Elegant, heavy Sans-serif or Serif typography reads "[メインタイトル]" in Gold, White, or Black. High contrast, clean layout with negative space.
+  - A clean, semi-transparent overlay box containing "[サブタイトル]".
+  - Minimalist text element for "[カテゴリ/タグ]".
 
 #### Step 5: 画像生成
 
@@ -1106,9 +1393,11 @@ nanobanana-pro で画像を生成する:
 ```bash
 cd /c/Users/baseb/dev/開発1/.claude/skills/nanobanana-pro
 
-python scripts/run.py image_generator.py \
+# ⚠️ 重要: --show-browser と --timeout 300 を必ず指定
+PYTHONIOENCODING=utf-8 python scripts/run.py image_generator.py \
   --prompt "{Step 4で構築したプロンプト}" \
-  --output "../../output/note-{slug}/images/eyecatch.png"
+  --output "../../output/note-{slug}/images/eyecatch.png" \
+  --show-browser --timeout 300
 ```
 
 生成後、`article.md` の冒頭にある `<!-- [EYECATCH_IMAGE: ...] -->` を以下に置換:
@@ -1156,11 +1445,330 @@ python scripts/run.py image_generator.py \
 
 ### クロスメディア展開戦略の提案
 
-記事完成後、以下の3展開戦略を提案する:
+記事完成後、以下の展開戦略を提案する:
 
-1. **Threads/X展開**: 記事の核心メッセージを5〜10ツイートのスレッドに分解
-2. **Kindle出版**: 記事を拡張して電子書籍化（ebook-creator-ssスキルで対応）
-3. **SNS共有用画像**: まとめ画像をInstagram/X用に最適化
+1. **Kindle出版**: 記事を拡張して電子書籍化（ebook-creator-ssスキルで対応）
+2. **SNS共有用画像**: まとめ画像をInstagram/X用に最適化
+
+※ X投稿はPhase 7で自動生成する
+
+---
+
+## Phase 6.5: まとめ漫画1ページ生成
+
+### 概要
+
+記事の内容を3コマの漫画で要約し、記事の見出し画像として使用できる1ページ漫画を生成する。
+ユーザー確認なしで一気に進める。
+
+**成果物:** `images/manga_summary.png` - 記事まとめ漫画（896×1152px）
+
+### 自動実行フロー
+
+```
+記事内容の分析
+    ↓
+ストーリー作成（3コマ構成）
+    ↓
+キャラクター設定（1〜2人）
+    ↓
+ページ構成・コマ詳細
+    ↓
+NanoBanana用プロンプト生成
+    ↓
+画像生成
+    ↓
+完成！
+```
+
+### Step 1: ストーリー作成
+
+記事の内容を以下の3コマ構成に自動変換する：
+
+| コマ | 役割 | 内容の抽出元 |
+|------|------|-------------|
+| **コマ1** | 悩み・問題 | 記事のProblem/Agitationセクションから |
+| **コマ2** | 発見・解決策 | 記事のSolutionセクションから |
+| **コマ3** | 成功・喜び | 記事のAction/Leadセクションから |
+
+**ストーリーテンプレート:**
+```
+コマ1: 主人公が[記事で扱う問題]に困っている
+コマ2: [記事の解決策]を発見して目を輝かせる
+コマ3: 解決して喜ぶ「[記事のベネフィット]！」
+```
+
+### Step 2: キャラクター設定
+
+記事のターゲット読者を擬人化して1人のキャラクターを作成する。
+
+**キャラクター設定テンプレート:**
+```
+名前: [カタカナ3〜4文字]
+年齢: [ターゲット層に合わせる]
+職業: [ターゲットの職業]
+性格: 好奇心旺盛、素直、頑張り屋
+服装: [ターゲットに合わせたカジュアルな服装]
+```
+
+**キャラクタープロンプト形式:**
+```
+1girl/1boy, Japanese, [年代], [表情], [髪型・髪色], [目の色], [服装詳細], [ポーズ], anime-style, webtoon style
+```
+
+### Step 3: ページ構成
+
+**レイアウト:** 縦長1ページ（896×1152px）、3コマ縦並び
+**読み進め方:** 上から下へ（悩み→発見→解決）
+**共通トーン:** anime-style, webtoon, modern manga illustration, soft light, smooth shading, delicate linework, expressive eyes, full color
+
+**コマ構成テンプレート:**
+
+```
+●コマ1（上段・横長）
+- シーン: 主人公が困っている
+- 表情: 困惑、悩み、焦り
+- 背景: [問題に関連する場所]
+- セリフ: 「[悩みを表すセリフ]」
+
+●コマ2（中段・横長）
+- シーン: 解決策を発見
+- 表情: 驚き、目がキラキラ
+- 背景: [解決策に関連するビジュアル]
+- セリフ: 「[発見の驚きを表すセリフ]」
+
+●コマ3（下段・横長）
+- シーン: 成功して喜ぶ
+- 表情: 笑顔、ガッツポーズ
+- 背景: [成功を象徴するビジュアル]
+- セリフ: 「[喜びを表すセリフ]」
+```
+
+### Step 4: プロンプト生成・画像生成
+
+**NanoBanana用プロンプト形式:**
+
+```
+Page layout:
+This page shows a 3-panel vertical manga layout. Panel 1 (top): The protagonist struggles with [problem]. Panel 2 (middle): Discovery moment - eyes light up upon finding [solution]. Panel 3 (bottom): Success and joy - the protagonist celebrates with [result].
+
+Panel 1:
+Description: [シーンの説明を英語で]
+panel shape and size: Horizontal, top third of page
+Character name & details: [キャラ名] — [キャラプロンプト] (キャラクターの詳細は添付画像を参考)
+Character expression: Confused, worried, frustrated
+Character facing: [向き]
+Character pose: [ポーズ]
+Background: [背景を英語で]
+speech bubble: 「[日本語セリフ]」
+camera angle: eye-level
+art style: anime-style, webtoon, modern manga illustration, soft light and smooth shading, delicate linework, expressive eyes, full color, NO black and white
+color theme: [配色テーマ]
+
+Panel 2:
+Description: [シーンの説明を英語で]
+panel shape and size: Horizontal, middle third of page
+Character name & details: [キャラ名] — [キャラプロンプト] (キャラクターの詳細は添付画像を参考)
+Character expression: Surprised, eyes sparkling, excited
+Character facing: [向き]
+Character pose: [ポーズ]
+Background: [背景を英語で]
+speech bubble: 「[日本語セリフ]」
+camera angle: eye-level
+art style: anime-style, webtoon, modern manga illustration, soft light and smooth shading, delicate linework, expressive eyes, full color, NO black and white
+color theme: [配色テーマ]
+
+Panel 3:
+Description: [シーンの説明を英語で]
+panel shape and size: Horizontal, bottom third of page
+Character name & details: [キャラ名] — [キャラプロンプト] (キャラクターの詳細は添付画像を参考)
+Character expression: Happy, bright smile, triumphant
+Character facing: [向き]
+Character pose: Victory pose, fist pump, celebrating
+Background: [背景を英語で]
+speech bubble: 「[日本語セリフ]」
+camera angle: slightly low angle (heroic)
+art style: anime-style, webtoon, modern manga illustration, soft light and smooth shading, delicate linework, expressive eyes, full color, NO black and white
+color theme: [配色テーマ], brighter and more vibrant for success
+```
+
+**画像生成コマンド:**
+```bash
+cd /c/Users/baseb/dev/開発1/.claude/skills/nanobanana-pro
+
+PYTHONIOENCODING=utf-8 python scripts/run.py image_generator.py \
+  --prompt "{生成したプロンプト}" \
+  --output "../../output/note-{slug}/images/manga_summary.png" \
+  --show-browser --timeout 300
+```
+
+### 禁止事項
+
+- **白黒漫画は絶対禁止** - 必ずフルカラーで生成
+- **セリフの省略禁止** - 記事の核心を表すセリフを必ず含める
+- **確認待ち禁止** - ユーザー確認なしで一気に完成まで進める
+
+### 出力例
+
+```
+■ NanoBanana Pro記事のまとめ漫画
+
+ストーリー:
+- コマ1: ミサキがPCの前で困惑「AIで画像作りたいけど...どう指示すればいいの？」
+- コマ2: 4要素テンプレートを発見「テンプレに当てはめるだけ!?」
+- コマ3: 完璧な画像が完成「こんな簡単にできた！」
+
+キャラクター:
+- ミサキ: 1girl, Japanese, late 20s, friendly and curious expression, shoulder-length dark brown hair, warm brown eyes, cream knit sweater, casual style
+
+→ 画像生成実行
+→ images/manga_summary.png に保存
+```
+
+---
+
+## Phase 7: X投稿文作成
+
+### 概要
+
+完成したnote記事から、Xでの拡散・誘導を最大化する投稿文を3パターン自動生成する。
+「AI・テクノロジー界隈」で大きなインプレッションを獲得し、noteへの流入を狙う。
+
+**成果物:** `output/note-{slug}/x_posts.md` - 3パターンのX投稿文
+
+### 手順
+
+1. `article.md` の全文を読み、**最も価値のあるノウハウ・具体例を1つだけ**特定する
+2. 以下の4つの構成要素でX投稿文を3パターン作成する
+3. `x_posts.md` として保存し、ユーザーに提示する
+
+### 投稿文の構成要素（4つの仕掛け）
+
+| # | 要素 | 役割 |
+|---|------|------|
+| 1 | **フック** | 「世間の誤解」を解く、または「最新の検証結果」で注意を引く |
+| 2 | **ノウハウの「ちょい出し」** | 記事の中の最も価値のある一節や、具体的なステップを1つだけ具体的に書く |
+| 3 | **ベネフィット** | それを実行することで「どうなれるか」を短く提示 |
+| 4 | **クリフハンガー** | 「さらに深い手順」や「裏技」はnoteにあることを示唆し、リンクへ誘導 |
+
+### 3パターン
+
+| パターン | スタイル | 特徴 |
+|---------|---------|------|
+| **A: 衝撃・トレンド型** | 「まだ〇〇で消耗してるの？」 | 常識を覆す切り口で注意を引く |
+| **B: 即実践・有益型** | 「これだけは覚えて」 | 具体的な1Tipsを教えるスタイル |
+| **C: 本質・思考型** | 技術の裏側にある「考え方」 | 知的好奇心を刺激するスタイル |
+
+### スタイルルール
+
+- **文字数**: 140〜200文字（1ポストで完結）
+- **最後に必ず `[URL]` プレースホルダー**を配置（記事公開後にURLを差し替え）
+- **ハッシュタグ**: 0〜1個（最小限）
+- **箇条書き・区切り線**（=== や ---）を使い視認性を高める
+- **改行を多用**し、スマホで1画面に収まる「抜け感」のあるレイアウト
+- **感情を揺さぶる言葉**: 「ヤバい」「怖いくらい」「保存版」等を自然に活用
+- 専門用語を使いつつも「自分でもできそう」と思える平易な解説
+
+### 出力テンプレート（x_posts.md）
+
+```markdown
+# X投稿文（note記事拡散用）
+
+記事: {記事タイトル}
+ピックアップしたノウハウ: {選定した核心ポイント}
+
+---
+
+## パターンA: 衝撃・トレンド型
+
+{投稿文本文}
+
+[URL]
+
+---
+
+## パターンB: 即実践・有益型
+
+{投稿文本文}
+
+[URL]
+
+---
+
+## パターンC: 本質・思考型
+
+{投稿文本文}
+
+[URL]
+```
+
+### 品質チェックリスト
+
+- [ ] 140〜200文字に収まっているか
+- [ ] フック → ちょい出し → ベネフィット → クリフハンガーの流れになっているか
+- [ ] note記事の核心ノウハウが「ちょい出し」されているか（全部バラさない）
+- [ ] 最後に `[URL]` があるか
+- [ ] スマホで読みやすい改行・レイアウトか
+- [ ] ハッシュタグが1個以下か
+
+---
+
+## Phase 8: DOCX変換（Word形式出力）
+
+### 概要
+
+生成したnote記事をWord形式（.docx）に変換し、画像を埋め込んだ状態で出力する。
+noteへの貼り付けだけでなく、納品物やアーカイブとしても使用可能。
+
+**成果物:** `article.docx` - 画像埋め込み済みWord形式
+
+### 手順
+
+1. `article.md` の最終チェック（画像パス・改ページの確認）
+2. Pandoc で画像を埋め込んだ Word ファイルを作成する
+3. 完成した DOCX をユーザーに通知する
+
+### 変換前の最終チェック（必須）
+
+以下を確認・適用してから変換を実行する：
+
+```markdown
+1. 画像パスが相対パス（images/xxx.png）になっているか
+2. セクション区切りに `---` が入っているか
+3. 見出しレベル（# ## ###）が適切か
+```
+
+### 変換コマンド
+
+```bash
+cd /c/Users/baseb/dev/開発1/output/note-{slug}
+
+pandoc article.md \
+  -o article.docx \
+  --from markdown \
+  --to docx \
+  --resource-path=. \
+  --standalone \
+  --dpi=150
+```
+
+### 変換後の構造
+
+```
+output/note-{slug}/
+├── article.md               # Markdown版（note貼り付け用）
+├── article_raw.md           # 中間ファイル（画像タグ）
+├── article.docx             # ← Word版（画像埋め込み済み）
+├── x_posts.md               # X投稿文
+└── images/                  # 生成画像
+```
+
+### 注意事項
+
+- 見出し（`#` `##` `###`）は Word のスタイル（見出し1、見出し2、見出し3）に自動変換される
+- 画像は自動的に埋め込まれる（リンク切れの心配なし）
+- DOCX を Google Drive にアップロードすれば Google ドキュメントとしても開ける
+- Pandoc が未インストールの場合は `doc-convert-pandoc` スキルのセットアップ手順に従う
 
 ---
 
@@ -1172,6 +1780,7 @@ python scripts/run.py image_generator.py \
 | `research-free` | APIキー不要の統合リサーチ（フォールバック） | Phase 2 |
 | `nanobanana-prompts` | 画像プロンプト最適化の4つの黄金ルール | Phase 5 |
 | `nanobanana-pro` | Gemini NanoBanana で画像生成 | Phase 5 |
+| `doc-convert-pandoc` | Markdown → DOCX 変換 | Phase 8 |
 | `note-marketing` | note記事戦略（画像なし版） | - |
 | `ebook-creator-ss` | 電子書籍版（Kindle向け） | - |
 
