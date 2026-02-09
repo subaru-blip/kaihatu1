@@ -8,8 +8,11 @@ Usage:
     python scripts/run.py image_generator.py --prompt "your prompt here" --output output.png
     python scripts/run.py image_generator.py --prompt "sunset" --output images/sunset.png --show-browser
 
-    # With reference image (NEW!)
+    # With reference image (style extraction)
     python scripts/run.py image_generator.py --prompt "犬を描いて" --reference-image ref.png --output output.png
+
+    # With attach image (character consistency - uploads image to Gemini chat)
+    python scripts/run.py image_generator.py --prompt "draw this character running" --attach-image character_sheet.png --output output.png
 """
 
 import sys
@@ -281,7 +284,124 @@ def check_authenticated():
     except Exception:
         return False
 
-def generate_image(prompt: str, output_path: str, show_browser: bool = False, timeout: int = 180, max_retries: int = 3):
+def upload_attach_image(page, image_path: str) -> bool:
+    """
+    Upload an image to Gemini chat as attachment (for character consistency etc).
+    Adapted from prompt_extractor.py upload mechanism.
+
+    Args:
+        page: Playwright page object
+        image_path: Absolute path to image file
+
+    Returns:
+        bool: True if upload successful
+    """
+    image_file = Path(image_path)
+    if not image_file.exists():
+        print(f"   ⚠️ Attach image not found: {image_path}")
+        return False
+
+    print(f"   → Attaching image: {image_file.name}...")
+
+    # Step 1: Find and click add/attach button
+    add_button_selectors = [
+        'button[aria-label*="その他のオプション"]',
+        'button[aria-label*="Add"]',
+        'button[aria-label*="追加"]',
+        'button[aria-label*="添付"]',
+        'button[aria-label*="ファイル"]',
+        'button[aria-label*="画像を追加"]',
+        'button[aria-label*="Insert"]',
+        '[class*="add-content"]',
+        '[class*="upload"]',
+        'button:has(mat-icon:has-text("add"))',
+        'button:has(mat-icon:has-text("attach_file"))',
+        'button:has(mat-icon:has-text("image"))',
+    ]
+
+    button_clicked = False
+    for selector in add_button_selectors:
+        try:
+            btn = page.locator(selector).first
+            if btn.is_visible():
+                btn.click()
+                page.wait_for_timeout(2000)
+                button_clicked = True
+                print(f"   ✓ Found add button: {selector}")
+                break
+        except:
+            continue
+
+    # Step 2: Click "ファイルをアップロード" in menu
+    if button_clicked:
+        upload_menu_selectors = [
+            'text="ファイルをアップロード"',
+            'text="画像をアップロード"',
+            'text="Upload file"',
+            'text="Upload image"',
+            '[role="menuitem"]:has-text("アップロード")',
+            '[role="menuitem"]:has-text("Upload")',
+            '[class*="menu"] *:has-text("アップロード")',
+        ]
+
+        for selector in upload_menu_selectors:
+            try:
+                item = page.locator(selector).first
+                if item.is_visible():
+                    item.click()
+                    page.wait_for_timeout(1500)
+                    print(f"   ✓ Found upload menu: {selector}")
+                    break
+            except:
+                continue
+
+    # Step 3: Find file input element
+    file_input = None
+    file_input_selectors = [
+        'input[type="file"]',
+        'input[accept*="image"]',
+        'input[accept*="*"]',
+    ]
+
+    for attempt in range(3):
+        for selector in file_input_selectors:
+            try:
+                locator = page.locator(selector)
+                if locator.count() > 0:
+                    file_input = locator.first
+                    break
+            except:
+                continue
+        if file_input:
+            break
+        page.wait_for_timeout(1000)
+
+    if not file_input:
+        print("   ⚠️ Could not find file input for attach-image")
+        return False
+
+    # Step 4: Upload the file
+    try:
+        with page.expect_file_chooser(timeout=10000) as fc_info:
+            file_input.dispatch_event('click')
+        file_chooser = fc_info.value
+        file_chooser.set_files(str(image_file.absolute()))
+        print("   ✓ Image attached via file chooser")
+    except Exception:
+        try:
+            file_input.set_input_files(str(image_file.absolute()))
+            print("   ✓ Image attached via set_input_files")
+        except Exception as e2:
+            print(f"   ⚠️ Attach upload failed: {e2}")
+            return False
+
+    # Wait for upload to complete
+    page.wait_for_timeout(3000)
+    print("   ✓ Attach image upload complete")
+    return True
+
+
+def generate_image(prompt: str, output_path: str, show_browser: bool = False, timeout: int = 180, max_retries: int = 3, attach_image: str = None):
     """
     Generate image using Gemini with persistent browser context.
 
@@ -291,6 +411,7 @@ def generate_image(prompt: str, output_path: str, show_browser: bool = False, ti
         show_browser: Whether to show browser window
         timeout: Maximum wait time in seconds (default: 180)
         max_retries: Maximum number of retry attempts on timeout (default: 3)
+        attach_image: Path to image to attach to Gemini chat before prompt (optional)
 
     Returns:
         bool: True if successful
@@ -371,6 +492,12 @@ def generate_image(prompt: str, output_path: str, show_browser: bool = False, ti
             page.wait_for_timeout(2000)
 
             print("   → NanoBanana (画像の作成) activated")
+
+            # Step 2.5: Attach image if provided (for character consistency)
+            if attach_image:
+                attach_success = upload_attach_image(page, attach_image)
+                if not attach_success:
+                    print("   ⚠️ Attach image failed, continuing without it...")
 
             # Step 3: Find input field (now in NanoBanana mode)
             print("   → Finding input field...")
@@ -621,6 +748,10 @@ def main():
         help="Reference image path for style extraction (optional)"
     )
     parser.add_argument(
+        "--attach-image",
+        help="Image to attach to Gemini chat before prompt (for character consistency)"
+    )
+    parser.add_argument(
         "--yaml-output",
         help="Save extracted YAML analysis to this path (optional)"
     )
@@ -698,7 +829,8 @@ def main():
         output_path=args.output,
         show_browser=args.show_browser,
         timeout=args.timeout,
-        max_retries=args.max_retries
+        max_retries=args.max_retries,
+        attach_image=args.attach_image
     )
 
     return 0 if success else 1

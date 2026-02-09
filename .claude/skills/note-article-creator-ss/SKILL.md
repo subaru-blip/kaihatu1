@@ -1224,31 +1224,31 @@ cd /c/Users/baseb/dev/開発1/.claude/skills/nanobanana-pro
 # アイキャッチ
 PYTHONIOENCODING=utf-8 python scripts/run.py image_generator.py \
   --prompt "{変換後プロンプト}" \
-  --output "../../output/note-{slug}/images/eyecatch.png" \
+  --output "../../../output/note-{slug}/images/eyecatch.png" \
   --show-browser --timeout 300
 
 # セクション区切り
 PYTHONIOENCODING=utf-8 python scripts/run.py image_generator.py \
   --prompt "{変換後プロンプト}" \
-  --output "../../output/note-{slug}/images/section_01.png" \
+  --output "../../../output/note-{slug}/images/section_01.png" \
   --show-browser --timeout 300
 
 # 本文中図解
 PYTHONIOENCODING=utf-8 python scripts/run.py image_generator.py \
   --prompt "{変換後プロンプト}" \
-  --output "../../output/note-{slug}/images/inline_01.png" \
+  --output "../../../output/note-{slug}/images/inline_01.png" \
   --show-browser --timeout 300
 
 # CTA画像
 PYTHONIOENCODING=utf-8 python scripts/run.py image_generator.py \
   --prompt "{変換後プロンプト}" \
-  --output "../../output/note-{slug}/images/cta_01.png" \
+  --output "../../../output/note-{slug}/images/cta_01.png" \
   --show-browser --timeout 300
 
 # まとめ画像
 PYTHONIOENCODING=utf-8 python scripts/run.py image_generator.py \
   --prompt "{変換後プロンプト}" \
-  --output "../../output/note-{slug}/images/summary.png" \
+  --output "../../../output/note-{slug}/images/summary.png" \
   --show-browser --timeout 300
 ```
 
@@ -1396,7 +1396,7 @@ cd /c/Users/baseb/dev/開発1/.claude/skills/nanobanana-pro
 # ⚠️ 重要: --show-browser と --timeout 300 を必ず指定
 PYTHONIOENCODING=utf-8 python scripts/run.py image_generator.py \
   --prompt "{Step 4で構築したプロンプト}" \
-  --output "../../output/note-{slug}/images/eyecatch.png" \
+  --output "../../../output/note-{slug}/images/eyecatch.png" \
   --show-browser --timeout 300
 ```
 
@@ -1598,7 +1598,7 @@ cd /c/Users/baseb/dev/開発1/.claude/skills/nanobanana-pro
 
 PYTHONIOENCODING=utf-8 python scripts/run.py image_generator.py \
   --prompt "{生成したプロンプト}" \
-  --output "../../output/note-{slug}/images/manga_summary.png" \
+  --output "../../../output/note-{slug}/images/manga_summary.png" \
   --show-browser --timeout 300
 ```
 

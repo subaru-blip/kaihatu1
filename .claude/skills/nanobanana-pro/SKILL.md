@@ -92,10 +92,19 @@ python scripts/run.py image_generator.py \
 |-----------|----------|---------|-------------|
 | `--prompt` | Yes | - | Image generation prompt |
 | `--output` | No | `output/generated_image.png` | Output file path |
-| `--reference-image` | No | - | Reference image for style extraction |
+| `--reference-image` | No | - | Reference image for style extraction (YAML analysis) |
+| `--attach-image` | No | - | Image to attach to Gemini chat before prompt (for character consistency) |
 | `--yaml-output` | No | - | Save YAML analysis to file |
 | `--show-browser` | No | False | Show browser for debugging |
 | `--timeout` | No | 180 | Max wait time in seconds |
+
+### --reference-image vs --attach-image
+
+| | `--reference-image` | `--attach-image` |
+|---|---|---|
+| 用途 | スタイル抽出 | キャラクター一貫性 |
+| 動作 | 画像→YAML分析→メタプロンプト生成 | 画像をGeminiチャットに直接添付 |
+| ユースケース | 参考画像と同じ画風で別の絵を生成 | キャラシートを参照して同じキャラを描く |
 
 ## Prompt Examples
 
@@ -137,6 +146,22 @@ python scripts/run.py image_generator.py \
   --reference-image "examples/cozy_room.png" \
   --show-browser \
   --output output/cafe.png
+```
+
+### Attach Image Examples (キャラクター一貫性)
+
+```bash
+# Attach character sheet for consistency
+python scripts/run.py image_generator.py \
+  --prompt "Panel showing the main character running through a city street" \
+  --attach-image "characters/all_characters.png" \
+  --output output/page_001.png
+
+# Manga panel with character reference
+python scripts/run.py image_generator.py \
+  --prompt "Close-up of Yui smiling, anime style" \
+  --attach-image "characters/all_characters.png" \
+  --output output/page_002.png
 ```
 
 ### Standalone Tools

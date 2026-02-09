@@ -103,6 +103,15 @@
       "strict": false
     },
     {
+      "name": "メルマガ作成",
+      "description": "メールマガジンの件名・本文をテキスト出力",
+      "when_contains_all": [],
+      "when_contains_any": ["メルマガ", "メールマガジン", "配信メール", "ニュースレター"],
+      "required_skills": ["merumaga-ss"],
+      "priority": 80,
+      "strict": false
+    },
+    {
       "name": "ステップメール作成",
       "description": "ステップメールシーケンスの作成",
       "when_contains_all": ["ステップメール"],
@@ -244,6 +253,15 @@
       "when_contains_any": ["分析", "調査", "Ad Library"],
       "required_skills": ["meta-ads-competitors"],
       "priority": 80,
+      "strict": false
+    },
+    {
+      "name": "書籍PDF分析",
+      "description": "ビジネス書・技術書・ハウツー本のPDFを完全解析（全文テキスト化+構造分析+要約+アクションプラン）",
+      "when_contains_all": [],
+      "when_contains_any": ["本を分析", "書籍を分析", "book-pdf-analyzer-ss", "書籍PDF", "ビジネス書分析", "本を解析", "本のまとめ", "技術書分析", "PDFの本"],
+      "required_skills": ["book-pdf-analyzer-ss"],
+      "priority": 85,
       "strict": false
     }
   ],

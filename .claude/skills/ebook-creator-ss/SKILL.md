@@ -5,7 +5,7 @@ description: 参考資料とリサーチを元に電子書籍の原稿（15,000�
 
 # eBook Creator - 電子書籍一発生成スキル
 
-参考資料 → リサーチ → 原稿（15,000字）+ 画像（30〜35枚）+ DOCX を一括生成。
+参考資料 → リサーチ → 原稿（15,000字）+ 図解（40〜60枚）+ DOCX を一括生成。
 
 ## Important: Gemini思考モード必須
 
@@ -39,7 +39,7 @@ Phase 4: 原稿執筆
    │  15,000字を執筆 + 画像タグ挿入
    ▼
 Phase 5: 画像一括生成
-   │  NanoBanana で30〜35枚の画像を生成
+   │  NanoBanana で40〜60枚の図解を生成
    ▼
 Phase 5.5: 表紙作成
    │  マンガ風帯付き表紙のヒアリング → プロンプト生成 → 画像生成
@@ -59,9 +59,9 @@ Phase 6: DOCX変換
 | 構成 | はじめに + 5章 + おわりに |
 | 1章あたり | 約2,500〜3,000字 |
 | 表紙画像 | 1枚（マンガ風帯付き表紙） |
-| 章ヘッダー画像 | 5枚 |
-| 本文中図解 | 約500字ごとに1枚（1章5〜6枚 × 5章） |
-| 画像合計 | 約30〜35枚 |
+| 章ヘッダー図解 | 5枚（章の全体像を示す図解） |
+| 本文中図解 | 各小見出し（###）ごとに最低1枚 + 難解箇所は追加 |
+| 画像合計 | 約40〜60枚（章構成による） |
 | Amazon提出用表紙プロンプト | 1ファイル（cover_prompt_amazon.md） |
 | 出力形式 | DOCX（Word） + Markdown + images/ フォルダ + Amazon用プロンプト |
 
@@ -452,9 +452,27 @@ Step 4: 統合・整理
 - **総文字数**: 約15,000字（はじめに + 5章 + おわりに）
 - **1章あたり**: 2,500〜3,000字
 - **はじめに/おわりに**: 各800〜1,000字
-- **文体**: です・ます調、親しみやすく実用的
+- **文体**: **です・ます調で統一**（「〜です」「〜ます」「〜ください」）。親しみやすく丁寧な語り口
+  - NG: 「〜だ」「〜である」「〜しよう」
+  - OK: 「〜です」「〜になります」「〜してみましょう」「〜してください」
 - **段落**: 3〜4文ごとに改行。読みやすさ重視
 - **具体例**: 各章に最低2つの具体例・事例を含める
+- **図解との連携**: 本文中で「以下の図をご覧ください」「この流れを図で整理すると次のようになります」など、図解への導入文を入れる
+- **会話の扱い**: キャラクター間の会話（対話形式）は本文中に自然に組み込んでよい。ただし「【漫画シーン】」のようなト書き・場面指示は入れない。漫画は原稿とは別工程で制作するため、原稿には場面描写・演出指示を含めないこと
+  - NG: `### 【漫画シーン】カフェにて` → ト書き風の場面指示
+  - OK: 本文の流れの中でキャラクターが会話する形式（説明の導入や要約として自然に挿入）
+- **表（テーブル）の禁止**: Markdownの表（`| ... |`形式）は使用しないこと。電子書籍リーダーではテーブルが正しく表示されないため、すべて箇条書きで表現する
+  - NG: `| 項目 | 説明 |` → テーブル形式
+  - OK: `・**項目**：説明` → 箇条書き形式
+  - 比較表の場合: `・**項目名**` + インデントで `　・A：値` / `　・B：値` の入れ子にする
+- **箇条書きはMarkdownリスト記法（`-`）を使わない**: Word変換時にWordの箇条書き機能が自動適用され、電子書籍でレイアウトが崩れるため。代わりに「・」を通常テキストとして入力する。番号リストも「1.」ではなく「①②③」など通常文字で入力する
+  - NG: `- 項目` → Markdownリスト記法
+  - OK: `・項目` → 通常テキストの「・」
+  - NG: `1. 手順` → Markdownナンバリング
+  - OK: `① 手順` → 通常テキストの番号
+- **ASCII図・記号図の禁止**: 罫線文字（`┌─┐│└─┘`等）や記号を組み合わせて図を表現しないこと。電子書籍では確実に崩れる。図は画像として挿入する
+- **コードブロック（` ``` `）の禁止**: コマンド等は通常テキストとしてそのまま記述する。コードブロック記法はWord変換で意図しないフォーマットになる場合がある
+- **画像の前後に空行**: `![alt](path){ width=100% }` の前後には必ず空行を1行入れる
 
 ### 改ページルール（DOCX出力時に反映）
 
@@ -486,13 +504,23 @@ Step 4: 統合・整理
 ### 画像タグの挿入ルール
 
 原稿中に以下のタグを埋め込む。タグは独立した行に記述する。
+**全画像は「図解・インフォグラフィック」スタイルで統一する。漫画風イラストは使用しない。**
 
-#### 章ヘッダー画像（各章の冒頭、章タイトルの直後）
+#### 章ヘッダー図解（各章の冒頭、章タイトルの直後）
+
+章ヘッダーもイラストではなく**章の全体像を示す図解**として生成する。
+章内で扱う主要トピックの関係性や流れを1枚の図にまとめるイメージ。
+
 ```
-<!-- [HEADER_IMAGE: {章の内容を象徴する視覚的シーンの説明。日本語で50〜80字}] -->
+<!-- [HEADER_IMAGE: pattern={パターン名} | title={章タイトル} | elements={章内の主要トピック} | description={補足}] -->
 ```
 
-#### 本文中図解（約500字ごと）
+#### 本文中図解（各小見出し `###` ごとに最低1枚）
+
+**挿入基準:**
+- **各小見出し（`###`）のセクションに最低1枚**は図解を入れる
+- 難しい概念や複雑な比較がある箇所には**追加の図解**を入れる
+- 連続する文章が400字以上続く場合は図解の追加を検討する
 
 直前の内容に最適な**図解パターン**を選定し、タグに含める。
 
@@ -695,13 +723,13 @@ Phase 5.5 で生成した表紙画像（`cover.png`）をそのまま使用す�
 Phase 5 の時点では表紙タグ `<!-- [COVER_IMAGE] -->` を原稿冒頭に配置するだけでよい。
 実際の画像生成は Phase 5.5 で行う。
 
-#### 章ヘッダー画像
+#### 章ヘッダー図解
 
 ```
-* Subject: (Professional illustration for e-book chapter header. Scene: {HEADER_IMAGEタグの説明を英訳}.)
-* Layout: (Wide landscape composition 16:9. Main visual element centered. Atmospheric background.)
-* Visuals: (Soft, warm color palette using {メインカラー} tones. Professional digital illustration. NO text in the image.)
-* Style: (Clean, modern, consistent with other chapter illustrations, professional e-book quality, high resolution 4k.)
+* Subject: (Professional infographic overview for e-book chapter. Topic: {HEADER_IMAGEタグの説明を英訳}.)
+* Layout: (Wide landscape 16:9. Central title area with surrounding topic icons/elements arranged in a structured layout.)
+* Visuals: (Flat vector design, modern business presentation style, clean Japanese typography, bold sans-serif fonts, corporate color palette using {メインカラー} tones, white background.)
+* Style: (Clean infographic, consistent diagram style across all chapters, professional e-book quality, high resolution 4k. NO illustration, NO character art.)
 ```
 
 #### 本文中図解（INLINE_IMAGE） - NanobananaPro 24パターン
