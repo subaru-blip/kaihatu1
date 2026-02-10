@@ -1,2 +1,5 @@
 node_modules/
 nul
+
+# 成果物フォルダ（同期しない）
+output/
