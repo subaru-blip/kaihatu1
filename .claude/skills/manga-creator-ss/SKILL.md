@@ -254,8 +254,11 @@ Template: {テンプレ1〜10から選択}
 **Character pose** {ポーズを英語で}
 **Background** {背景を英語で}
 **speech bubble** 「{日本語セリフそのまま}」
-  ※ 1コマに複数の吹き出しがある場合: 右側の吹き出し→左側の吹き出しの順で記述
-  ※ 例: speech bubble 1 (right): 「右側のセリフ」, speech bubble 2 (left): 「左側のセリフ」
+  ⚠️  1コマに複数の吹き出しがある場合の順序（厳守）:
+  - 右側の吹き出しが最初（speech bubble 1）
+  - 左側の吹き出しが次（speech bubble 2）
+  - 例: speech bubble 1 (right side): 「右のセリフ」, speech bubble 2 (left side): 「左のセリフ」
+  - 2人の会話の場合: 右側のキャラのセリフ → 左側のキャラのセリフ
 **camera angle** {eye-level / top-down / low-angle / side view}
 **art style** anime-style, modern manga illustration, soft light and smooth shading, delicate linework, expressive eyes, clean and bright overall tone, --ar 3:4
 **color theme** {配色を英語で}
@@ -381,6 +384,7 @@ Template: {テンプレ1〜10から選択}
 3. **必ずフルカラー**: 白黒漫画は絶対に禁止
 4. **（）の中の言葉**は吹き出しに記載しない
 5. **同じ言葉を二回以上**吹き出しに記載しない
+6. **1コマ内の吹き出し順序**: 右側の吹き出しが1番目、左側の吹き出しが2番目（右→左読み）
 
 ### オノマトペ（活用する）
 
