@@ -82,6 +82,7 @@
 | ステップメール | taiyo-style-step-mail |
 | VSL/ビデオセールスレター | taiyo-style-vsl |
 | 電子書籍/eBook/本を作って | ebook-creator-ss |
+| 紹介文/Kindleメタデータ/タイトルとキーワード | ebook-listings-ss |
 | note + 画像 + 記事 / note記事を一発で | note-article-creator-ss |
 | 漫画 + 一括 + 生成 / 漫画を作って / マンガ一括 | manga-creator-ss |
 | メルマガ / メールマガジン / 配信メール | merumaga-ss |
@@ -203,6 +204,7 @@ taisun_v2/.claude/
 | Skill | Description |
 |-------|-------------|
 | `ebook-creator-ss` | 電子書籍一発生成（原稿+画像一括） |
+| `ebook-listings-ss` | Kindle出版メタデータ一括生成（タイトル・著者名・KW・紹介文） |
 | `note-article-creator-ss` | note記事一発生成（記事+画像一括） |
 | `manga-creator-ss` | 漫画一括生成（原稿→200+コマ画像） |
 | `kindle-publishing` | Kindle本出版 |

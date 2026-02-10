@@ -236,26 +236,36 @@ Step 1のストーリーを元に、各ページのNanoBanana用プロンプト�
 **Page layout**
 {ページ全体のシーン・感情の流れを英語で自然な文章で表現。
 各コマがどのように展開・対比・連続しているかを簡潔かつ詳細にまとめる。}
+**Reading order: Right-to-left (Japanese manga style)** ← 必須記載
 Template: {テンプレ1〜10から選択}
 
-**Panel1**
+---
+重要: Panel番号は読む順番（1→2→3→4）。
+横並びコマの場合、Panel1=右側、Panel2=左側。
+---
+
+**Panel1** ← 読む順番の1番目（横並びなら右側のコマ）
 **Description** {シーンの説明を英語で}
 **panel shape and size** {horizontal-large / vertical-medium / square-small 等}
+**panel position** {top / middle-right / middle-left / bottom 等、コマの位置を明記}
 **Character name & details** {キャラ名} — {★Step 2のDBの外見テキストをそのまま埋め込む}, (refer to attached character sheet)
 **Character expression** {表情を英語で}
 **Character facing** {facing left / facing right / front}
 **Character pose** {ポーズを英語で}
 **Background** {背景を英語で}
 **speech bubble** 「{日本語セリフそのまま}」
+  ※ 1コマに複数の吹き出しがある場合: 右側の吹き出し→左側の吹き出しの順で記述
+  ※ 例: speech bubble 1 (right): 「右側のセリフ」, speech bubble 2 (left): 「左側のセリフ」
 **camera angle** {eye-level / top-down / low-angle / side view}
 **art style** anime-style, modern manga illustration, soft light and smooth shading, delicate linework, expressive eyes, clean and bright overall tone, --ar 3:4
 **color theme** {配色を英語で}
 
-**Panel2**
+**Panel2** ← 読む順番の2番目（横並びなら左側のコマ）
+**panel position** {位置を明記}
 ...
 ```
 
-**注意:** 各ページのプロンプト末尾（最後のPanelのart style）に `--ar 3:4` を含めること。これにより縦長画像が生成される。
+**注意:** プロンプトの**先頭**と末尾の両方に `--ar 3:4` を含めること。先頭に入れることでキャラクターシート（16:9横長）添付時でも確実に縦長画像が生成される。末尾にも残すことで二重に保証する。
 
 ### コマ割りテンプレート選択ルール
 
@@ -269,18 +279,100 @@ Template: {テンプレ1〜10から選択}
 
 **3コマ:**
 - テンプレ5: 上・中・下の3段構成（テンポのよい展開）
-- テンプレ6: 上段1コマ+下段左右2コマ → 1(上) → 2(下段右) → 3(下段左)
-- テンプレ7: 上段左右2コマ+下段1コマ → 1(上段右) → 2(上段左) → 3(下段)
+  ```
+  ┌─────────┐
+  │ Panel1  │ ← 上段
+  ├─────────┤
+  │ Panel2  │ ← 中段
+  ├─────────┤
+  │ Panel3  │ ← 下段
+  └─────────┘
+  ```
+
+- テンプレ6: 上段1コマ+下段左右2コマ
+  ```
+  ┌───────────────┐
+  │    Panel1     │ ← 上段
+  ├────────┬──────┤
+  │ Panel3 │Panel2│ ← 下段: 右(Panel2)→左(Panel3)
+  └────────┴──────┘
+  ```
+
+- テンプレ7: 上段左右2コマ+下段1コマ
+  ```
+  ┌────────┬──────┐
+  │ Panel2 │Panel1│ ← 上段: 右(Panel1)→左(Panel2)
+  ├───────────────┤
+  │    Panel3     │ ← 下段
+  └───────────────┘
+  ```
 
 **4コマ:**
-- テンプレ8: 上段横長+中段左右+下段横長 → 1(上) → 2(中段右) → 3(中段左) → 4(下)
-- テンプレ9: 上段横長+下段右縦長+左上下分割 → 1(上) → 2(下段右) → 3(下段左上) → 4(下段左下)
-- テンプレ10: 上段横長+下段左縦長+右上下分割 → 1(上) → 2(下段右上) → 3(下段右下) → 4(下段左)
+- テンプレ8: 上段横長+中段左右+下段横長
+  ```
+  ┌───────────────┐
+  │    Panel1     │ ← 上段
+  ├────────┬──────┤
+  │ Panel3 │Panel2│ ← 中段: 右(Panel2)→左(Panel3)
+  ├───────────────┤
+  │    Panel4     │ ← 下段
+  └───────────────┘
+  ```
 
-### 読み順ルール
+- テンプレ9: 上段横長+下段右縦長+左上下分割
+  ```
+  ┌────────────────┐
+  │    Panel1      │ ← 上段
+  ├─────┬──────────┤
+  │Panel4│ Panel2   │ ← 下段: 右(Panel2)→左上(Panel3)→左下(Panel4)
+  │─────│          │
+  │Panel3│          │
+  └─────┴──────────┘
+  ```
 
+- テンプレ10: 上段横長+下段左縦長+右上下分割
+  ```
+  ┌────────────────┐
+  │    Panel1      │ ← 上段
+  ├──────────┬─────┤
+  │          │Panel2│ ← 下段: 右上(Panel2)→右下(Panel3)→左(Panel4)
+  │  Panel4  │─────│
+  │          │Panel3│
+  └──────────┴─────┘
+  ```
+
+### 読み順ルール（厳守）
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  ⚠️  重要: すべての漫画は右→左読み（日本式）で作成すること        │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**基本ルール:**
 - **日本の漫画形式**: 右上から左下へ
 - **横並びのコマ**: 必ず「右側」が先、「左側」が後
+- **Panel番号**: 読む順番を示す（Panel1=最初に読む、Panel2=次に読む）
+- **位置と番号は別**: Panel1が左側にあることもある（読む順番が1番目という意味）
+- **1コマ内の吹き出し順序**: 複数の吹き出しがある場合、右側の吹き出しが最初、左側の吹き出しが次
+  - 例: 1コマに2人が会話 → 右側キャラのセリフが先、左側キャラのセリフが後
+
+**具体例（テンプレ8の場合）:**
+```
+┌─────────────────────────┐
+│   Panel1（上段横長）      │  ← 最初に読む
+├───────────┬─────────────┤
+│  Panel3   │   Panel2    │  ← Panel2（右）を先に読み、次にPanel3（左）
+│ (中段左)  │  (中段右)   │
+├─────────────────────────┤
+│   Panel4（下段横長）      │  ← 最後に読む
+└─────────────────────────┘
+
+読み順: Panel1 → Panel2（右） → Panel3（左） → Panel4
+```
+
+**Page layoutに必須記載:**
+- すべてのページのPage layout説明に「Right-to-left reading order (Japanese manga style)」を含めること
 
 ### 絶対遵守ルール
 
@@ -312,7 +404,7 @@ Template: {テンプレ1〜10から選択}
 cd "C:\Users\baseb\dev\開発1\.claude\skills\nanobanana-pro"
 
 PYTHONIOENCODING=utf-8 PYTHONUTF8=1 python scripts/run.py image_generator.py \
-  --prompt "{ページNの英語プロンプト全文。末尾に --ar 3:4 を含む}" \
+  --prompt "--ar 3:4 {ページNの英語プロンプト全文。末尾にも --ar 3:4 を含む}" \
   --attach-image "../../../output/manga-{slug}/characters/all_characters.png" \
   --output "../../../output/manga-{slug}/panels/page_NNN.png" \
   --timeout 240

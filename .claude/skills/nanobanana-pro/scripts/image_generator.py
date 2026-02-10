@@ -22,6 +22,12 @@ import time
 from pathlib import Path
 from patchright.sync_api import sync_playwright
 import base64
+import io
+
+# Windows環境でのUTF-8出力設定
+if sys.platform == 'win32':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
@@ -154,13 +160,13 @@ def run_setup_check(page, context, image_gen_selectors, setup_timeout=300):
                 continue
 
         if image_gen_button:
-            print("  ✓ ログイン済み（画像の作成ボタン確認）")
+            print("  [OK] ログイン済み（画像の作成ボタン確認）")
             break
 
         # Show status every 10 seconds
         if elapsed == 0 or elapsed % 10 == 0:
             remaining = setup_timeout - elapsed
-            print(f"  ✗ ログインを待っています... （残り {remaining}s）")
+            print(f"  [WAIT] ログインを待っています... （残り {remaining}s）")
             print("    Googleアカウントでログインしてください")
 
         page.wait_for_timeout(2000)
@@ -168,7 +174,7 @@ def run_setup_check(page, context, image_gen_selectors, setup_timeout=300):
     if not image_gen_button:
         print("")
         print("=" * 70)
-        print("❌ ログインがタイムアウトしました")
+        print("[ERROR] ログインがタイムアウトしました")
         print("   Googleアカウントでログインしてから再実行してください")
         print("=" * 70)
         return False, None
@@ -176,7 +182,7 @@ def run_setup_check(page, context, image_gen_selectors, setup_timeout=300):
     # Phase 2: Wait for thinking mode (detect automatically)
     print("\n[Phase 2] 思考モード確認")
     print("=" * 70)
-    print("⚠️  重要: 右下のモードを「思考」に切り替えてください！")
+    print("[WARN]  重要: 右下のモードを「思考」に切り替えてください！")
     print("")
     print("   ┌─────────────────────────────────────────┐")
     print("   │  高速モードでは日本語テキストの品質が   │")
@@ -198,19 +204,19 @@ def run_setup_check(page, context, image_gen_selectors, setup_timeout=300):
         is_thinking_mode = check_thinking_mode(page)
         if is_thinking_mode:
             print("")
-            print("  ✓ 思考モード検出！")
+            print("  [OK] 思考モード検出！")
             break
 
         if elapsed == 0 or elapsed % 10 == 0:
             remaining = thinking_timeout - elapsed
-            print(f"  ✗ 思考モードを待っています... （残り {remaining}s）")
+            print(f"  [WAIT] 思考モードを待っています... （残り {remaining}s）")
 
         page.wait_for_timeout(2000)
 
     if not is_thinking_mode:
         print("")
         print("=" * 70)
-        print("❌ 思考モードが確認できませんでした")
+        print("[ERROR] 思考モードが確認できませんでした")
         print("   思考モードに切り替えてから再実行してください")
         print("=" * 70)
         return False, None
@@ -221,13 +227,13 @@ def run_setup_check(page, context, image_gen_selectors, setup_timeout=300):
         STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
         with open(STATE_FILE, 'w') as f:
             json.dump(state, f)
-        print("  ✓ セッション保存完了")
+        print("  [OK] セッション保存完了")
     except:
         pass
 
     print("")
     print("=" * 70)
-    print("✓ セットアップ完了 - 画像生成を開始します")
+    print("[OK] セットアップ完了 - 画像生成を開始します")
     print("=" * 70)
 
     return True, image_gen_button
@@ -270,14 +276,14 @@ def check_authenticated():
                                if c['name'] in google_auth_cookie_names]
 
         if len(google_auth_cookies) < 3:
-            print(f"⚠️  Missing Google auth cookies (found {len(google_auth_cookies)}, need 3+)")
+            print(f"[WARN]  Missing Google auth cookies (found {len(google_auth_cookies)}, need 3+)")
             return False
 
         # Check if state file is not too old (7 days)
         import time
         age_days = (time.time() - STATE_FILE.stat().st_mtime) / 86400
         if age_days > 7:
-            print(f"⚠️  Browser state is {age_days:.1f} days old, may need re-authentication")
+            print(f"[WARN]  Browser state is {age_days:.1f} days old, may need re-authentication")
 
         return True
 
@@ -298,7 +304,7 @@ def upload_attach_image(page, image_path: str) -> bool:
     """
     image_file = Path(image_path)
     if not image_file.exists():
-        print(f"   ⚠️ Attach image not found: {image_path}")
+        print(f"   [WARN] Attach image not found: {image_path}")
         return False
 
     print(f"   → Attaching image: {image_file.name}...")
@@ -327,7 +333,7 @@ def upload_attach_image(page, image_path: str) -> bool:
                 btn.click()
                 page.wait_for_timeout(2000)
                 button_clicked = True
-                print(f"   ✓ Found add button: {selector}")
+                print(f"   [OK] Found add button: {selector}")
                 break
         except:
             continue
@@ -350,7 +356,7 @@ def upload_attach_image(page, image_path: str) -> bool:
                 if item.is_visible():
                     item.click()
                     page.wait_for_timeout(1500)
-                    print(f"   ✓ Found upload menu: {selector}")
+                    print(f"   [OK] Found upload menu: {selector}")
                     break
             except:
                 continue
@@ -377,7 +383,7 @@ def upload_attach_image(page, image_path: str) -> bool:
         page.wait_for_timeout(1000)
 
     if not file_input:
-        print("   ⚠️ Could not find file input for attach-image")
+        print("   [WARN] Could not find file input for attach-image")
         return False
 
     # Step 4: Upload the file
@@ -386,18 +392,18 @@ def upload_attach_image(page, image_path: str) -> bool:
             file_input.dispatch_event('click')
         file_chooser = fc_info.value
         file_chooser.set_files(str(image_file.absolute()))
-        print("   ✓ Image attached via file chooser")
+        print("   [OK] Image attached via file chooser")
     except Exception:
         try:
             file_input.set_input_files(str(image_file.absolute()))
-            print("   ✓ Image attached via set_input_files")
+            print("   [OK] Image attached via set_input_files")
         except Exception as e2:
-            print(f"   ⚠️ Attach upload failed: {e2}")
+            print(f"   [WARN] Attach upload failed: {e2}")
             return False
 
     # Wait for upload to complete
     page.wait_for_timeout(3000)
-    print("   ✓ Attach image upload complete")
+    print("   [OK] Attach image upload complete")
     return True
 
 
@@ -481,7 +487,7 @@ def generate_image(prompt: str, output_path: str, show_browser: bool = False, ti
             )
 
             if not setup_success or not image_gen_button:
-                print("❌ セットアップが完了しませんでした")
+                print("[ERROR] セットアップが完了しませんでした")
                 print("   ログインと思考モード切替を完了してから再実行してください")
                 context.close()
                 playwright.stop()
@@ -497,7 +503,7 @@ def generate_image(prompt: str, output_path: str, show_browser: bool = False, ti
             if attach_image:
                 attach_success = upload_attach_image(page, attach_image)
                 if not attach_success:
-                    print("   ⚠️ Attach image failed, continuing without it...")
+                    print("   [WARN] Attach image failed, continuing without it...")
 
             # Step 3: Find input field (now in NanoBanana mode)
             print("   → Finding input field...")
@@ -515,13 +521,13 @@ def generate_image(prompt: str, output_path: str, show_browser: bool = False, ti
                     if page.locator(selector).count() > 0:
                         input_element = page.locator(selector).first
                         if input_element.is_visible():
-                            print(f"   ✓ Found input: {selector}")
+                            print(f"   [OK] Found input: {selector}")
                             break
                 except:
                     continue
 
             if not input_element:
-                print("❌ Could not find input field. UI may have changed.")
+                print("[ERROR] Could not find input field. UI may have changed.")
                 print("   Try running with --show-browser to debug")
                 context.close()
                 playwright.stop()
@@ -554,7 +560,7 @@ def generate_image(prompt: str, output_path: str, show_browser: bool = False, ti
                             btn = locator.nth(i)
                             if btn.is_visible():
                                 send_button = btn
-                                print(f"   ✓ Found send button: {selector}")
+                                print(f"   [OK] Found send button: {selector}")
                                 break
                     if send_button:
                         break
@@ -574,6 +580,8 @@ def generate_image(prompt: str, output_path: str, show_browser: bool = False, ti
 
             # Try to find generated image (improved selectors from sales_letter_generator)
             image_selectors = [
+                'img.image.loaded',  # 2026年2月時点の最新セレクタ（class="image loaded"）
+                'img[class*="image"][class*="loaded"]',  # 複合classセレクタ
                 'img[src*="lh3.googleusercontent"]',
                 'img[src*="googleusercontent"]',
                 'div[class*="response"] img',
@@ -600,9 +608,16 @@ def generate_image(prompt: str, output_path: str, show_browser: bool = False, ti
                                     src = img.get_attribute('src') or ''
                                     if 'googleusercontent' in src:
                                         # Check image size to ensure it's the generated image
-                                        bbox = img.bounding_box()
-                                        if bbox and bbox['width'] > 200 and bbox['height'] > 200:
-                                            print("   ✓ Image generated!")
+                                        try:
+                                            bbox = img.bounding_box()
+                                            if bbox and bbox['width'] > 100 and bbox['height'] > 100:
+                                                print("   [OK] Image generated!")
+                                                image_found = True
+                                                image_element = img
+                                                break
+                                        except:
+                                            # If bounding_box fails, accept the image anyway
+                                            print("   [OK] Image generated! (size check skipped)")
                                             image_found = True
                                             image_element = img
                                             break
@@ -626,7 +641,7 @@ def generate_image(prompt: str, output_path: str, show_browser: bool = False, ti
                 for error_text in error_texts:
                     try:
                         if page.locator(f'text="{error_text}"').count() > 0:
-                            print("❌ Gemini declined to generate the image")
+                            print("[ERROR] Gemini declined to generate the image")
                             context.close()
                             playwright.stop()
                             return False
@@ -636,7 +651,7 @@ def generate_image(prompt: str, output_path: str, show_browser: bool = False, ti
                 page.wait_for_timeout(2000)
 
             if not image_found:
-                print(f"❌ Timeout after {timeout}s - image not generated")
+                print(f"[ERROR] Timeout after {timeout}s - image not generated")
                 if attempt < max_retries:
                     print(f"   → ページを再読み込みしてリトライします...")
                     # Reload page for retry
@@ -647,7 +662,7 @@ def generate_image(prompt: str, output_path: str, show_browser: bool = False, ti
                         pass
                     continue  # Retry with SAME prompt (not simplified!)
                 else:
-                    print(f"❌ {max_retries}回リトライしましたが失敗しました")
+                    print(f"[ERROR] {max_retries}回リトライしましたが失敗しました")
                     context.close()
                     playwright.stop()
                     return False
@@ -684,28 +699,28 @@ def generate_image(prompt: str, output_path: str, show_browser: bool = False, ti
                     print("   → Using screenshot fallback...")
                     image_element.screenshot(path=output_path)
 
-                print(f"\n✓ Image saved to: {output_path}")
+                print(f"\n[OK] Image saved to: {output_path}")
                 context.close()
                 playwright.stop()
                 return True
 
             except Exception as e:
-                print(f"❌ Error downloading image: {e}")
+                print(f"[ERROR] Error downloading image: {e}")
                 print("   → Trying screenshot fallback...")
                 try:
                     image_element.screenshot(path=output_path)
-                    print(f"✓ Image saved via screenshot: {output_path}")
+                    print(f"[OK] Image saved via screenshot: {output_path}")
                     context.close()
                     playwright.stop()
                     return True
                 except Exception as e2:
-                    print(f"❌ Screenshot also failed: {e2}")
+                    print(f"[ERROR] Screenshot also failed: {e2}")
                     context.close()
                     playwright.stop()
                     return False
 
         except Exception as e:
-            print(f"\n❌ Error: {e}")
+            print(f"\n[ERROR] Error: {e}")
             if attempt < max_retries:
                 print(f"   → リトライします...")
                 try:
@@ -777,7 +792,7 @@ def main():
 
     # Check authentication
     if not check_authenticated():
-        print("❌ Not authenticated")
+        print("[ERROR] Not authenticated")
         print("   Run: python scripts/run.py auth_manager.py setup")
         return 1
 
@@ -802,11 +817,11 @@ def main():
         )
 
         if not extract_result["success"]:
-            print(f"❌ Failed to extract from reference image: {extract_result['error']}")
+            print(f"[ERROR] Failed to extract from reference image: {extract_result['error']}")
             return 1
 
         yaml_content = extract_result["yaml"]
-        print("   ✓ Visual analysis complete")
+        print("   [OK] Visual analysis complete")
 
         # Step 2: Generate optimized meta-prompt
         from meta_prompt import load_yaml, generate_meta_prompt
@@ -815,9 +830,9 @@ def main():
         try:
             yaml_data = load_yaml(yaml_text=yaml_content)
             final_prompt = generate_meta_prompt(yaml_data, args.prompt)
-            print(f"   ✓ Optimized prompt: {final_prompt[:100]}...")
+            print(f"   [OK] Optimized prompt: {final_prompt[:100]}...")
         except Exception as e:
-            print(f"⚠️  Warning: Could not parse YAML, using original prompt")
+            print(f"[WARN]  Warning: Could not parse YAML, using original prompt")
             print(f"   Error: {e}")
 
         print(f"\n[Step 3/3] Generating image...")

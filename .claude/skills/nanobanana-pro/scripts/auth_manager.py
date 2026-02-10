@@ -17,6 +17,12 @@ import re
 import time
 from pathlib import Path
 from patchright.sync_api import sync_playwright
+import io
+
+# Windows環境でのUTF-8出力設定
+if sys.platform == 'win32':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
@@ -46,7 +52,7 @@ def check_status():
     """
     # Primary check: state.json must exist with cookies
     if not STATE_FILE.exists():
-        print("❌ Not authenticated")
+        print("[ERROR] Not authenticated")
         print("   Run: python scripts/run.py auth_manager.py setup")
         return False
 
@@ -59,7 +65,7 @@ def check_status():
             state = json.load(f)
 
         if 'cookies' not in state or len(state['cookies']) == 0:
-            print("❌ Not authenticated (no cookies in state file)")
+            print("[ERROR] Not authenticated (no cookies in state file)")
             print("   Run: python scripts/run.py auth_manager.py setup")
             return False
 
@@ -73,7 +79,7 @@ def check_status():
                                if c['name'] in google_auth_cookie_names]
 
         if len(google_auth_cookies) < 3:
-            print("⚠️  Missing Google auth cookies!")
+            print("[WARN]  Missing Google auth cookies!")
             print(f"   Found only {len(google_auth_cookies)} auth cookies (need at least 3)")
             print("   You may need to re-authenticate:")
             print("   Run: python scripts/run.py auth_manager.py setup")
@@ -87,11 +93,11 @@ def check_status():
         info['state_age_hours'] = age_hours
 
         if age_hours > 168:  # 7 days
-            print(f"⚠️  Browser state is {age_hours/24:.1f} days old")
+            print(f"[WARN]  Browser state is {age_hours/24:.1f} days old")
             print("   You may need to re-authenticate soon")
 
     except Exception as e:
-        print(f"❌ Error reading state file: {e}")
+        print(f"[ERROR] Error reading state file: {e}")
         print("   Run: python scripts/run.py auth_manager.py setup")
         return False
 
@@ -105,7 +111,7 @@ def check_status():
             pass
 
     if authenticated:
-        print("✓ Authenticated")
+        print("[OK] Authenticated")
         if 'email' in info:
             print(f"  User: {info['email']}")
         if 'auth_date' in info:
@@ -118,7 +124,7 @@ def check_status():
             print(f"  Google auth cookies: {info['auth_cookie_count']}")
         return True
     else:
-        print("❌ Not authenticated")
+        print("[ERROR] Not authenticated")
         print("   Run: python scripts/run.py auth_manager.py setup")
         return False
 
@@ -174,7 +180,7 @@ def setup_auth(timeout_minutes: int = 10):
             # Need to login at accounts.google.com first
             print()
             print("  👤 Please log in to your Google account...")
-            print(f"  ⏱️  Waiting up to {timeout_minutes} minutes for Google login...")
+            print(f"  [TIME]  Waiting up to {timeout_minutes} minutes for Google login...")
             print()
 
             # Wait for redirect to myaccount.google.com (indicates successful login)
@@ -187,7 +193,7 @@ def setup_auth(timeout_minutes: int = 10):
                 print("  ✅ Google login successful!")
                 page.wait_for_timeout(2000)  # Let cookies settle
             except Exception as e:
-                print(f"  ⏱️  Timeout waiting for Google login")
+                print(f"  [TIME]  Timeout waiting for Google login")
                 context.close()
                 playwright.stop()
                 return False
@@ -227,7 +233,7 @@ def setup_auth(timeout_minutes: int = 10):
             else:
                 # Page loads but no auth cookies - need manual login
                 print()
-                print("  ⚠️  Page accessible but missing Google auth cookies")
+                print("  [WARN]  Page accessible but missing Google auth cookies")
                 print("     This may be using system Chrome login, not persistent profile")
                 print("     Please log in manually to establish persistent session...")
                 print()
@@ -235,7 +241,7 @@ def setup_auth(timeout_minutes: int = 10):
         # Wait for manual login
         print()
         print("  👤 Please log in to your Google account in the browser...")
-        print(f"  ⏱️  Waiting up to {timeout_minutes} minutes for login...")
+        print(f"  [TIME]  Waiting up to {timeout_minutes} minutes for login...")
         print()
 
         try:
@@ -276,8 +282,8 @@ def setup_auth(timeout_minutes: int = 10):
 
         except Exception as timeout_error:
             print()
-            print(f"  ⏱️  Timeout after {timeout_minutes} minutes")
-            print("  ❌ Login not completed in time")
+            print(f"  [TIME]  Timeout after {timeout_minutes} minutes")
+            print("  [ERROR] Login not completed in time")
             print()
             print("  Please try again and complete login faster,")
             print("  or increase timeout with: --timeout 15")
@@ -290,7 +296,7 @@ def setup_auth(timeout_minutes: int = 10):
 
     except KeyboardInterrupt:
         print()
-        print("  ⚠️  Authentication cancelled by user")
+        print("  [WARN]  Authentication cancelled by user")
         if context:
             context.close()
         if playwright:
@@ -299,7 +305,7 @@ def setup_auth(timeout_minutes: int = 10):
 
     except Exception as e:
         print()
-        print(f"  ❌ Authentication failed: {e}")
+        print(f"  [ERROR] Authentication failed: {e}")
         print()
         print("  Troubleshooting:")
         print("  - Check your internet connection")
@@ -354,7 +360,7 @@ def _save_auth_state(context, page):
         print("  → Authentication info saved")
 
     except Exception as e:
-        print(f"  ⚠️  Could not save state: {e}")
+        print(f"  [WARN]  Could not save state: {e}")
 
 
 def clear_auth():
@@ -377,7 +383,7 @@ def clear_auth():
             removed_items.append("browser profile")
 
         if removed_items:
-            print("✓ Cleared:")
+            print("[OK] Cleared:")
             for item in removed_items:
                 print(f"  - {item}")
         else:
@@ -386,7 +392,7 @@ def clear_auth():
         return True
 
     except Exception as e:
-        print(f"❌ Error clearing auth: {e}")
+        print(f"[ERROR] Error clearing auth: {e}")
         return False
 
 

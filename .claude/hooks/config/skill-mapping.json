@@ -256,6 +256,15 @@
       "strict": false
     },
     {
+      "name": "Kindle出版メタデータ生成",
+      "description": "電子書籍の原稿からタイトル・著者名・キーワード7つ・紹介文を一括生成",
+      "when_contains_all": [],
+      "when_contains_any": ["ebook-listings", "紹介文を作って", "Kindleメタデータ", "タイトルとキーワード", "出版情報を作って"],
+      "required_skills": ["ebook-listings-ss"],
+      "priority": 80,
+      "strict": false
+    },
+    {
       "name": "書籍PDF分析",
       "description": "ビジネス書・技術書・ハウツー本のPDFを完全解析（全文テキスト化+構造分析+要約+アクションプラン）",
       "when_contains_all": [],
